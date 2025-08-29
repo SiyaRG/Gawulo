@@ -1,0 +1,103 @@
+{
+  "short_name": "Gawulo",
+  "name": "Gawulo - Township Food Ordering",
+  "description": "Offline-first food ordering system for South African townships",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "maskable_icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#ed7516",
+  "background_color": "#f8fafc",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["food", "business", "lifestyle"],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot2.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Place Order",
+      "short_name": "Order",
+      "description": "Quickly place a new food order",
+      "url": "/menu",
+      "icons": [
+        {
+          "src": "shortcut-order.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Track Order",
+      "short_name": "Track",
+      "description": "Track your current orders",
+      "url": "/orders",
+      "icons": [
+        {
+          "src": "shortcut-track.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Vendor Dashboard",
+      "short_name": "Dashboard",
+      "description": "Access vendor dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "shortcut-dashboard.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "protocol_handlers": [
+    {
+      "protocol": "web+gawulo",
+      "url": "/?action=%s"
+    }
+  ]
+}

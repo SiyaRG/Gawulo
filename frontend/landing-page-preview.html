@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gawulo - Delicious Food, Delivered to Your Doorstep</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #2D323A;
+            background-color: #FDFDFC;
+        }
+
+        /* Color palette */
+        :root {
+            --primary-action: #FF6B35;
+            --primary-brand: #4F372D;
+            --secondary: #00798C;
+            --secondary-yellow: #FFD639;
+            --neutral-dark: #2D323A;
+            --neutral-light: #FDFDFC;
+        }
+
+        /* Utility classes */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-action);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #E55A2B;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #006B7A;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--primary-brand) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 80px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .hero-text h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .hero-text p {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .phone-mockup {
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .phone {
+            width: 320px;
+            height: 640px;
+            background-color: var(--neutral-dark);
+            border-radius: 16px;
+            padding: 8px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background-color: var(--neutral-light);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .phone-header {
+            height: 60px;
+            background-color: var(--primary-brand);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .phone-content {
+            padding: 16px;
+        }
+
+        .phone-content h3 {
+            margin-bottom: 16px;
+            color: var(--primary-brand);
+        }
+
+        .vendor-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 8px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .vendor-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--secondary);
+            border-radius: 50%;
+            margin-right: 16px;
+        }
+
+        .vendor-info h4 {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .vendor-info small {
+            color: #666;
+        }
+
+        /* Trust Section */
+        .trust-section {
+            padding: 80px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-brand);
+            margin-bottom: 60px;
+        }
+
+        .trust-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+
+        .trust-card {
+            text-align: center;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            background-color: white;
+        }
+
+        .trust-card:hover {
+            transform: translateY(-8px);
+        }
+
+        .trust-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background-color: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+        }
+
+        .trust-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-brand);
+            margin-bottom: 16px;
+        }
+
+        .trust-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Feature Section */
+        .feature-section {
+            background-color: var(--secondary-yellow);
+            padding: 80px 0;
+        }
+
+        .feature-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .feature-text h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-brand);
+            margin-bottom: 24px;
+        }
+
+        .feature-text p {
+            font-size: 1.25rem;
+            color: var(--neutral-dark);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--secondary-yellow);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            color: var(--primary-brand);
+            font-size: 24px;
+        }
+
+        .feature-info h4 {
+            font-weight: 600;
+            color: var(--primary-brand);
+            margin-bottom: 4px;
+        }
+
+        .feature-info p {
+            color: var(--neutral-dark);
+            font-size: 0.875rem;
+        }
+
+        .order-mockup {
+            display: flex;
+            justify-content: center;
+        }
+
+        .order-card {
+            width: 350px;
+            height: 700px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .order-header {
+            height: 50px;
+            background-color: var(--primary-action);
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .order-content h3 {
+            margin-bottom: 16px;
+            color: var(--primary-brand);
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .order-total {
+            background-color: var(--secondary);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            margin-top: 24px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 80px 0;
+        }
+
+        .cta-card {
+            text-align: center;
+            background-color: var(--primary-brand);
+            color: white;
+            border-radius: 16px;
+            padding: 60px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-card h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .cta-card p {
+            font-size: 1.25rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+
+        .cta-chip {
+            display: inline-block;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--neutral-dark);
+            color: white;
+            padding: 32px 0;
+            text-align: center;
+        }
+
+        .footer p {
+            opacity: 0.8;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .hero-text h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-text p {
+                font-size: 1.1rem;
+            }
+
+            .hero-buttons {
+                justify-content: center;
+            }
+
+            .phone {
+                width: 280px;
+                height: 560px;
+            }
+
+            .feature-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .feature-text h2 {
+                font-size: 2rem;
+            }
+
+            .order-card {
+                width: 300px;
+                height: 600px;
+            }
+
+            .cta-card h2 {
+                font-size: 2rem;
+            }
+
+            .cta-card p {
+                font-size: 1.1rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 16px;
+            }
+
+            .hero {
+                padding: 60px 0;
+            }
+
+            .trust-section,
+            .feature-section,
+            .cta-section {
+                padding: 60px 0;
+            }
+
+            .hero-text h1 {
+                font-size: 2rem;
+            }
+
+            .cta-card {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Delicious Food, Delivered to Your Doorstep</h1>
+                    <p>Connect with local vendors in your township. Order offline, save data, and support your community.</p>
+                    <div class="hero-buttons">
+                        <a href="#" class="btn btn-primary">Download App</a>
+                        <a href="#" class="btn btn-outline">Learn More</a>
+                    </div>
+                </div>
+                <div class="phone-mockup">
+                    <div class="phone">
+                        <div class="phone-screen">
+                            <div class="phone-header">Gawulo</div>
+                            <div class="phone-content">
+                                <h3>Local Vendors</h3>
+                                <div class="vendor-item">
+                                    <div class="vendor-avatar"></div>
+                                    <div class="vendor-info">
+                                        <h4>Vendor 1</h4>
+                                        <small>⭐ 4.1 • 2km away</small>
+                                    </div>
+                                </div>
+                                <div class="vendor-item">
+                                    <div class="vendor-avatar"></div>
+                                    <div class="vendor-info">
+                                        <h4>Vendor 2</h4>
+                                        <small>⭐ 4.2 • 2km away</small>
+                                    </div>
+                                </div>
+                                <div class="vendor-item">
+                                    <div class="vendor-avatar"></div>
+                                    <div class="vendor-info">
+                                        <h4>Vendor 3</h4>
+                                        <small>⭐ 4.3 • 2km away</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust-Building Section -->
+    <section class="trust-section">
+        <div class="container">
+            <h2 class="section-title">Why Choose Gawulo?</h2>
+            <div class="trust-grid">
+                <div class="trust-card">
+                    <div class="trust-icon">👥</div>
+                    <h3>Support Your Local Businesses</h3>
+                    <p>Help grow your community by ordering from neighborhood vendors</p>
+                </div>
+                <div class="trust-card">
+                    <div class="trust-icon">📶</div>
+                    <h3>Offline-First Ordering</h3>
+                    <p>Order even when you have no internet connection</p>
+                </div>
+                <div class="trust-card">
+                    <div class="trust-icon">💰</div>
+                    <h3>No Extra Fees</h3>
+                    <p>Transparent pricing with no hidden charges</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feature Highlight Section -->
+    <section class="feature-section">
+        <div class="container">
+            <div class="feature-content">
+                <div class="feature-text">
+                    <h2>Simple & User-Friendly</h2>
+                    <p>Our app is designed with you in mind. Easy navigation, clear language, and touch-friendly buttons make ordering food simple for everyone.</p>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <div class="feature-icon">⭐</div>
+                            <div class="feature-info">
+                                <h4>Simple Navigation</h4>
+                                <p>Easy-to-use interface designed for everyone</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🚚</div>
+                            <div class="feature-info">
+                                <h4>Real-time Tracking</h4>
+                                <p>Know exactly when your food will arrive</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🍽️</div>
+                            <div class="feature-info">
+                                <h4>Local Favorites</h4>
+                                <p>Discover the best food in your area</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="order-mockup">
+                    <div class="order-card">
+                        <div class="order-header">Order Details</div>
+                        <div class="order-content">
+                            <h3>Your Order</h3>
+                            <div class="order-item">
+                                <span>Chicken Curry</span>
+                                <span>R25</span>
+                            </div>
+                            <div class="order-item">
+                                <span>Rice</span>
+                                <span>R30</span>
+                            </div>
+                            <div class="order-item">
+                                <span>Coke</span>
+                                <span>R35</span>
+                            </div>
+                            <div class="order-total">Total: R35</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call-to-Action Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-card">
+                <h2>Ready to Get Started?</h2>
+                <p>Download the Gawulo app today and start supporting local vendors in your community. Order offline, save money, and enjoy delicious food delivered to your doorstep.</p>
+                <div class="cta-buttons">
+                    <a href="#" class="btn btn-primary">Download for Android</a>
+                    <a href="#" class="btn btn-secondary">Scan QR Code</a>
+                </div>
+                <div class="cta-chip">No registration fees • No hidden costs • 100% local</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>© 2024 Gawulo. Empowering local vendors, connecting communities.</p>
+        </div>
+    </footer>
+</body>
+</html>
