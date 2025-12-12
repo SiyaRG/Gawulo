@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/payments/', include('payments.urls')),
     path('api/sync/', include('sync.urls')),
     path('api/tracking/', include('tracking.urls')),
+    path('api/lookups/', include('lookups.urls')),
 ]
 
 # Serve static and media files during development

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useQueryClient } from 'react-query';
 import { useRouteChange } from '../hooks/useRouteChange';
 import Layout from './Layout';
 import OfflineIndicator from './OfflineIndicator';
 import LoginForm from './LoginForm';
+import UserRegistrationForm from './UserRegistrationForm';
 import LandingPage from '../pages/UnauthenticatedPages/LandingPage';
 import HomePage from '../pages/HomePage';
 import VendorDashboard from '../pages/VendorDashboard';
@@ -24,6 +26,12 @@ interface RouterWrapperProps {
 const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
   // Handle route changes and cache invalidation
   useRouteChange();
+  const queryClient = useQueryClient();
+  
+  // Check both appState and queryClient for authentication status
+  // This ensures we have the latest auth state even if appState hasn't updated yet
+  const cachedUser = queryClient.getQueryData(['user', 'current']);
+  const isAuthenticated = appState.isAuthenticated || (cachedUser !== null && cachedUser !== undefined);
 
   return (
     <Routes>
@@ -36,6 +44,11 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route path="/login" element={
         <Layout appState={appState}>
           <LoginForm />
+        </Layout>
+      } />
+      <Route path="/register" element={
+        <Layout appState={appState}>
+          <UserRegistrationForm />
         </Layout>
       } />
       <Route path="/services" element={
@@ -58,7 +71,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/home" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <HomePage appState={appState} />
@@ -71,7 +84,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/vendor" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <VendorDashboard appState={appState} />
@@ -84,7 +97,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/customer" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <CustomerDashboard appState={appState} />
@@ -97,7 +110,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/track/:orderId" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <OrderTracking appState={appState} />
@@ -110,7 +123,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/payment/:orderId" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <PaymentPage appState={appState} />
@@ -123,7 +136,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/profile" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <ProfilePage appState={appState} />
@@ -136,7 +149,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route 
         path="/settings" 
         element={
-          appState.isAuthenticated ? (
+          isAuthenticated ? (
             <Layout appState={appState}>
               <OfflineIndicator isOnline={appState.isOnline} />
               <SettingsPage appState={appState} />

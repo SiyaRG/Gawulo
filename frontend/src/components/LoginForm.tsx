@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -15,6 +15,7 @@ import {
   Email as EmailIcon,
 } from '@mui/icons-material';
 import { useLogin } from '../hooks/useApi';
+import { useQueryClient } from 'react-query';
 import AlertMessage from './AlertMessage';
 
 interface LoginFormProps {
@@ -36,9 +37,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     password: '',
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasNavigated = useRef(false);
 
   const login = useLogin();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Capture error state from mutation and persist it locally
   useEffect(() => {
@@ -53,26 +56,43 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     }
   }, [login.error, login.isSuccess]);
 
+  // Navigate after successful login when user data is confirmed in cache
+  useEffect(() => {
+    if (login.isSuccess && login.data && !hasNavigated.current) {
+      const cachedUser = queryClient.getQueryData(['user', 'current']);
+      if (cachedUser) {
+        hasNavigated.current = true;
+        // Small delay to ensure App state has updated
+        const timer = setTimeout(() => {
+          const username = login.data.user.username;
+          if (username === 'admin') {
+            navigate('/home', { replace: true });
+          } else if (username === 'street_food_vendor') {
+            navigate('/vendor', { replace: true });
+          } else {
+            navigate('/customer', { replace: true });
+          }
+          onSuccess?.();
+        }, 50); // Small delay to ensure state propagation
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [login.isSuccess, login.data, queryClient, navigate, onSuccess]);
+
+  // Reset navigation flag when login mutation resets
+  useEffect(() => {
+    if (!login.isLoading && !login.isSuccess) {
+      hasNavigated.current = false;
+    }
+  }, [login.isLoading, login.isSuccess]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Clear previous error when starting new login attempt
     setErrorMessage(null);
-    login.mutate(formData, {
-      onSuccess: (data) => {
-        // Clear error on success
-        setErrorMessage(null);
-        // Redirect immediately - React Query updates synchronously
-        const username = data.user.username;
-        if (username === 'admin') {
-          navigate('/home'); // Admin dashboard
-        } else if (username === 'street_food_vendor') {
-          navigate('/vendor'); // Vendor dashboard
-        } else {
-          navigate('/customer'); // Customer dashboard
-        }
-        onSuccess?.();
-      },
-    });
+    login.mutate(formData);
+    // Navigation is handled by useEffect watching login.isSuccess
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +267,27 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 mt: 3,
                 color: '#666666',
                 fontSize: '0.875rem',
+              }}
+            >
+              Don't have an account?{' '}
+              <Link 
+                to="/register" 
+                style={{ 
+                  color: BRAND_COLORS.primary, 
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                Sign Up
+              </Link>
+            </Typography>
+            <Typography 
+              variant="body2" 
+              align="center" 
+              sx={{ 
+                mt: 1,
+                color: '#666666',
+                fontSize: '0.75rem',
               }}
             >
               Secure login powered by Trust as a Service

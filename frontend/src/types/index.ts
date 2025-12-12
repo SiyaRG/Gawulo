@@ -12,6 +12,70 @@ export interface User {
   offline_capable: boolean;
   last_sync?: string;
   date_joined: string;
+  is_staff?: boolean;
+}
+
+export interface UserPermissions {
+  // Vendor permissions
+  can_view_own_vendor_profile: boolean;
+  can_edit_own_vendor_profile: boolean;
+  can_view_own_vendor_orders: boolean;
+  can_update_order_status: boolean;
+  can_view_own_vendor_earnings: boolean;
+  can_manage_vendor_menu: boolean;
+  can_view_vendor_analytics: boolean;
+  
+  // Customer permissions
+  can_view_own_customer_profile: boolean;
+  can_edit_own_customer_profile: boolean;
+  can_view_own_customer_orders: boolean;
+  can_create_orders: boolean;
+  can_cancel_orders: boolean;
+  can_view_order_history: boolean;
+  can_rate_orders: boolean;
+  
+  // Payment permissions
+  can_make_payments: boolean;
+  can_view_own_payments: boolean;
+  can_view_all_payments: boolean;
+  can_process_refunds: boolean;
+  
+  // Order permissions
+  can_view_all_orders: boolean;
+  can_manage_orders: boolean;
+  
+  // Sync permissions
+  can_perform_sync: boolean;
+  can_resolve_sync_conflicts: boolean;
+  can_view_sync_status: boolean;
+  
+  // Tracking permissions
+  can_update_location: boolean;
+  can_view_order_tracking: boolean;
+  can_manage_deliveries: boolean;
+  
+  // Admin permissions
+  can_view_all_vendors: boolean;
+  can_manage_vendors: boolean;
+  can_view_all_customers: boolean;
+  can_manage_customers: boolean;
+  can_view_audit_logs: boolean;
+  can_manage_system_settings: boolean;
+  
+  // Offline permissions
+  can_create_offline_orders: boolean;
+  can_view_offline_orders: boolean;
+  can_record_offline_payments: boolean;
+}
+
+export interface AuthResponse {
+  user: User;
+  access: string;
+  refresh: string;
+}
+
+export interface TokenRefreshResponse {
+  access: string;
 }
 
 export interface Vendor {
@@ -347,11 +411,89 @@ export interface RegisterForm {
   username: string;
   email: string;
   password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  userType: 'customer' | 'vendor';
+  confirm_password: string;
+  first_name?: string;
+  last_name?: string;
+  display_name?: string;
+  phone_number?: string;
+  country?: string;
+  primary_language?: string;
+}
+
+export interface UserProfile {
+  phone_number?: string;
+  country?: string;
+  country_code?: string;
+  primary_language?: string;
+  languages?: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProfileUpdateForm {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  display_name?: string;
+  phone_number?: string;
+  country?: string;
+  primary_language?: string;
+}
+
+export interface CountryCodes {
+  id: number;
+  calling_code?: string;
+  tld?: string;
+  currency_code?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CountryFlags {
+  id: number;
+  flag_svg_url?: string;
+  flag_png_64?: string;
+  flag_emoji?: string;
+  flag_alt_text?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Country {
+  iso_alpha2: string;
+  country_name: string;
+  iso_alpha3?: string;
+  iso_numeric?: string;
+  region?: string;
+  sub_region?: string;
+  latitude?: number;
+  longitude?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  codes?: CountryCodes;
+  flags?: CountryFlags;
+}
+
+export interface LanguageScripts {
+  id: number;
+  script_code?: string;
+  script_name?: string;
+  is_rtl?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Language {
+  iso_639_1: string;
+  language_name_en: string;
+  native_name?: string;
+  iso_639_2?: string;
+  type?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  scripts?: LanguageScripts[];
 }
 
 export interface VendorRegistrationForm {
@@ -383,7 +525,9 @@ export const API_ENDPOINTS = {
   LOGIN: '/api/auth/login/',
   REGISTER: '/api/auth/register/',
   LOGOUT: '/api/auth/logout/',
-  REFRESH_TOKEN: '/api/auth/refresh/',
+  TOKEN_OBTAIN: '/api/auth/token/',
+  TOKEN_REFRESH: '/api/auth/token/refresh/',
+  TOKEN_VERIFY: '/api/auth/token/verify/',
   
   // Users
   USER_PROFILE: '/api/users/profile/',

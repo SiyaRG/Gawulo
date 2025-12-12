@@ -1,8 +1,7 @@
 """
-Order models for the ReachHub Trust as a Service platform.
+Order models for the Gawulo platform.
 
-Defines models for orders, order items, and order tracking with
-offline-capable operations and real-time status updates.
+Defines models for orders, order line items, order status history, and reviews.
 """
 
 from django.db import models
@@ -14,187 +13,196 @@ import uuid
 
 class Order(models.Model):
     """
-    Order model for food orders with offline support.
+    Order model for customer orders.
     
-    Supports offline creation and synchronization when connectivity is restored.
+    Uses UUID for public-facing order identifier and tracks order status.
     """
     
     ORDER_STATUS = (
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('preparing', 'Preparing'),
-        ('ready', 'Ready for Pickup/Delivery'),
-        ('out_for_delivery', 'Out for Delivery'),
-        ('delivered', 'Delivered'),
-        ('cancelled', 'Cancelled'),
-        ('failed', 'Failed'),
+        ('Confirmed', 'Confirmed'),
+        ('Pending', 'Pending'),
+        ('Processing', 'Processing'),
+        ('Shipped', 'Shipped'),
+        ('Delivered', 'Delivered'),
+        ('Cancelled', 'Cancelled'),
+        ('Refunded', 'Refunded'),
     )
     
-    DELIVERY_TYPE = (
-        ('delivery', 'Delivery'),
-        ('pickup', 'Pickup'),
-    )
-    
-    # Basic Information
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    order_number = models.CharField(max_length=20, unique=True)
-    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    id = models.AutoField(primary_key=True)
+    order_uid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     vendor = models.ForeignKey('vendors.Vendor', on_delete=models.CASCADE, related_name='orders')
-    
-    # Order Details
-    delivery_type = models.CharField(max_length=20, choices=DELIVERY_TYPE, default='delivery')
-    delivery_address = models.TextField(blank=True)
-    delivery_instructions = models.TextField(blank=True)
-    special_instructions = models.TextField(blank=True)
-    
-    # Pricing
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
-    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    customer = models.ForeignKey('auth_api.Customer', on_delete=models.CASCADE, related_name='orders')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    # Status and Tracking
-    status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
-    estimated_delivery_time = models.DateTimeField(null=True, blank=True)
-    actual_delivery_time = models.DateTimeField(null=True, blank=True)
-    
-    # Offline Support
-    created_offline = models.BooleanField(default=False)
-    synced_to_server = models.BooleanField(default=True)
-    sync_timestamp = models.DateTimeField(auto_now=True)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    current_status = models.CharField(max_length=50, choices=ORDER_STATUS, default='Confirmed')
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
     class Meta:
+        verbose_name = 'Order'
+        verbose_name_plural = 'Orders'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order_uid']),
+            models.Index(fields=['vendor', 'current_status']),
+            models.Index(fields=['customer', 'created_at']),
+        ]
     
     def __str__(self):
-        return f"Order {self.order_number} - {self.customer.username}"
+        return f"Order {self.order_uid} - {self.customer.display_name}"
     
     def save(self, *args, **kwargs):
-        """Generate order number if not provided."""
-        if not self.order_number:
-            self.order_number = self.generate_order_number()
+        """Ensure order_uid is set if not provided and prevent modification of created_at."""
+        if not self.order_uid:
+            self.order_uid = uuid.uuid4()
+        if self.pk:
+            # Preserve original created_at when updating
+            original = Order.objects.get(pk=self.pk)
+            self.created_at = original.created_at
         super().save(*args, **kwargs)
     
-    def generate_order_number(self):
-        """Generate unique order number."""
-        import random
-        import string
-        timestamp = timezone.now().strftime('%Y%m%d%H%M')
-        random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        return f"GAW{timestamp}{random_chars}"
-    
-    def get_total_items(self):
-        """Get total number of items in the order."""
-        return sum(item.quantity for item in self.items.all())
-    
-    def can_be_cancelled(self):
-        """Check if order can be cancelled."""
-        return self.status in ['pending', 'confirmed']
-    
-    def update_status(self, new_status):
-        """Update order status with validation."""
-        if new_status in dict(self.ORDER_STATUS):
-            self.status = new_status
-            self.save()
-            return True
-        return False
+    def mark_completed(self):
+        """Mark order as completed."""
+        self.is_completed = True
+        self.current_status = 'Delivered'
+        self.save()
 
 
-class OrderItem(models.Model):
+class OrderLineItem(models.Model):
     """
-    Individual items within an order.
+    Individual line items within an order.
     
-    Links menu items to orders with quantity and pricing information.
+    Stores product/service information with price snapshots for financial integrity.
     """
     
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    menu_item = models.ForeignKey('vendors.MenuItem', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    # Customizations
-    special_instructions = models.TextField(blank=True)
-    customizations = models.JSONField(default=dict, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    id = models.AutoField(primary_key=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='line_items')
+    product_service = models.ForeignKey(
+        'vendors.ProductService', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='order_line_items'
+    )
+    quantity = models.IntegerField(default=1, validators=[MinValueValidator(1)])
+    unit_price_snapshot = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        help_text='Price captured at time of order for financial integrity'
+    )
+    discount_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    line_total = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity_fulfilled = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
     class Meta:
-        unique_together = ['order', 'menu_item']
+        verbose_name = 'Order Line Item'
+        verbose_name_plural = 'Order Line Items'
+        ordering = ['id']
     
     def __str__(self):
-        return f"{self.quantity}x {self.menu_item.name} - Order {self.order.order_number}"
+        product_name = self.product_service.name if self.product_service else "Unknown Product"
+        return f"{self.quantity}x {product_name} - Order {self.order.order_uid}"
     
     def save(self, *args, **kwargs):
-        """Calculate total price if not set."""
-        if not self.total_price:
-            self.total_price = self.quantity * self.unit_price
+        """Calculate line_total if not set and prevent modification of created_at."""
+        if not self.line_total:
+            base_total = self.quantity * self.unit_price_snapshot
+            self.line_total = base_total - self.discount_applied
+        if self.pk:
+            # Preserve original created_at when updating
+            original = OrderLineItem.objects.get(pk=self.pk)
+            self.created_at = original.created_at
         super().save(*args, **kwargs)
+    
+    @property
+    def quantity_remaining(self):
+        """Calculate remaining quantity to fulfill."""
+        return max(0, self.quantity - self.quantity_fulfilled)
+    
+    def is_fully_fulfilled(self):
+        """Check if line item is fully fulfilled."""
+        return self.quantity_fulfilled >= self.quantity
 
 
 class OrderStatusHistory(models.Model):
     """
     Track order status changes for audit and customer communication.
+    
+    Records each status change with timestamp and user who confirmed it.
+    Note: confirmed_by_user is required per schema. Use a system user for automated actions.
     """
     
+    id = models.AutoField(primary_key=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_history')
-    status = models.CharField(max_length=20, choices=Order.ORDER_STATUS)
-    notes = models.TextField(blank=True)
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=50)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    confirmed_by_user = models.ForeignKey(
+        User, 
+        on_delete=models.PROTECT,
+        related_name='confirmed_status_changes'
+    )
     
     class Meta:
+        verbose_name = 'Order Status History'
+        verbose_name_plural = 'Order Status Histories'
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        user_name = self.confirmed_by_user.username if self.confirmed_by_user else "System"
+        return f"Order {self.order.order_uid} - {self.status} by {user_name} at {self.timestamp}"
+    
+    def save(self, *args, **kwargs):
+        """Prevent modification of timestamp on existing records."""
+        if self.pk:
+            # Preserve original timestamp when updating
+            original = OrderStatusHistory.objects.get(pk=self.pk)
+            self.timestamp = original.timestamp
+        super().save(*args, **kwargs)
+
+
+class Review(models.Model):
+    """
+    Customer reviews for completed orders.
+    
+    One review per order, linking customer, vendor, and order.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review')
+    vendor = models.ForeignKey('vendors.Vendor', on_delete=models.CASCADE, related_name='reviews')
+    customer = models.ForeignKey('auth_api.Customer', on_delete=models.CASCADE, related_name='reviews')
+    rating = models.IntegerField(validators=[MinValueValidator(1)])
+    comment = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'Review'
+        verbose_name_plural = 'Reviews'
         ordering = ['-created_at']
-        verbose_name_plural = 'Order status histories'
+        indexes = [
+            models.Index(fields=['vendor', 'rating']),
+            models.Index(fields=['customer', 'created_at']),
+        ]
     
     def __str__(self):
-        return f"Order {self.order.order_number} - {self.status} at {self.created_at}"
-
-
-class OrderRating(models.Model):
-    """
-    Customer ratings and reviews for completed orders.
-    """
+        return f"Review for Order {self.order.order_uid} - {self.rating} stars"
     
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='rating')
-    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='order_ratings')
-    rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MinValueValidator(5)])
-    comment = models.TextField(blank=True)
+    def save(self, *args, **kwargs):
+        """Update vendor rating statistics when review is saved and prevent modification of created_at."""
+        if self.pk:
+            # Preserve original created_at when updating
+            original = Review.objects.get(pk=self.pk)
+            self.created_at = original.created_at
+        super().save(*args, **kwargs)
+        self._update_vendor_rating()
     
-    # Rating categories
-    food_quality = models.PositiveIntegerField(validators=[MinValueValidator(1), MinValueValidator(5)], null=True, blank=True)
-    delivery_speed = models.PositiveIntegerField(validators=[MinValueValidator(1), MinValueValidator(5)], null=True, blank=True)
-    service_quality = models.PositiveIntegerField(validators=[MinValueValidator(1), MinValueValidator(5)], null=True, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"Rating for Order {self.order.order_number} - {self.rating}/5"
-
-
-class OfflineOrderQueue(models.Model):
-    """
-    Queue for orders created offline that need to be synced to server.
-    """
-    
-    order_data = models.JSONField()  # Store complete order data
-    customer_id = models.IntegerField()
-    vendor_id = models.UUIDField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    synced = models.BooleanField(default=False)
-    sync_attempts = models.PositiveIntegerField(default=0)
-    last_sync_attempt = models.DateTimeField(null=True, blank=True)
-    error_message = models.TextField(blank=True)
-    
-    class Meta:
-        ordering = ['created_at']
-    
-    def __str__(self):
-        return f"Offline Order Queue - {self.created_at}"
+    def _update_vendor_rating(self):
+        """Update vendor's average rating and review count."""
+        vendor = self.vendor
+        reviews = Review.objects.filter(vendor=vendor)
+        if reviews.exists():
+            total_rating = sum(review.rating for review in reviews)
+            vendor.average_rating = round(total_rating / reviews.count(), 1)
+            vendor.review_count = reviews.count()
+            vendor.save()

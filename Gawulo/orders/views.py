@@ -1,14 +1,16 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import serializers
 from django.shortcuts import get_object_or_404
-from .models import Order, OrderItem, OrderStatusHistory, OrderRating
+from .models import Order, OrderLineItem, OrderStatusHistory, Review
+from auth_api.models import Customer
 from .serializers import (
     OrderSerializer, 
-    OrderItemSerializer, 
+    OrderLineItemSerializer, 
     OrderCreateSerializer,
     OrderStatusUpdateSerializer,
-    OrderRatingSerializer
+    ReviewSerializer
 )
 
 
@@ -17,9 +19,9 @@ class OrderListView(generics.ListAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ['status', 'delivery_type', 'vendor']
-    search_fields = ['order_number', 'customer__username', 'vendor__business_name']
-    ordering_fields = ['created_at', 'total_amount', 'status']
+    filterset_fields = ['current_status', 'is_completed', 'vendor']
+    search_fields = ['order_uid', 'customer__display_name', 'vendor__name']
+    ordering_fields = ['created_at', 'total_amount', 'current_status']
 
 
 class OrderDetailView(generics.RetrieveAPIView):
@@ -37,7 +39,12 @@ class OrderDetailView(generics.RetrieveAPIView):
         elif hasattr(user, 'vendor_profile'):
             return Order.objects.filter(vendor=user.vendor_profile)
         else:
-            return Order.objects.filter(customer=user)
+            # Get customer profile for user
+            try:
+                customer = Customer.objects.get(user=user)
+                return Order.objects.filter(customer=customer)
+            except Customer.DoesNotExist:
+                return Order.objects.none()
 
 
 class OrderCreateView(generics.CreateAPIView):
@@ -47,26 +54,20 @@ class OrderCreateView(generics.CreateAPIView):
     
     def perform_create(self, serializer):
         """Create order with customer and calculate totals."""
-        order = serializer.save(customer=self.request.user)
+        # Get or create customer profile
+        customer, _ = Customer.objects.get_or_create(user=self.request.user)
+        order = serializer.save(customer=customer)
         
-        # Calculate order totals
-        subtotal = sum(item.total_price for item in order.items.all())
-        delivery_fee = order.vendor.delivery_fee if order.delivery_type == 'delivery' else 0
-        tax_amount = subtotal * 0.15  # 15% VAT
-        total_amount = subtotal + delivery_fee + tax_amount
-        
-        order.subtotal = subtotal
-        order.delivery_fee = delivery_fee
-        order.tax_amount = tax_amount
+        # Calculate order totals from line items (after they're created by serializer)
+        total_amount = sum(item.line_total for item in order.line_items.all())
         order.total_amount = total_amount
         order.save()
         
         # Create status history entry
         OrderStatusHistory.objects.create(
             order=order,
-            status='pending',
-            notes='Order created',
-            updated_by=self.request.user
+            status=order.current_status,
+            confirmed_by_user=self.request.user
         )
 
 
@@ -85,19 +86,22 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
         elif hasattr(user, 'vendor_profile'):
             return Order.objects.filter(vendor=user.vendor_profile)
         else:
-            return Order.objects.filter(customer=user)
+            try:
+                customer = Customer.objects.get(user=user)
+                return Order.objects.filter(customer=customer)
+            except Customer.DoesNotExist:
+                return Order.objects.none()
     
     def perform_update(self, serializer):
         """Update order status and create history entry."""
-        old_status = self.get_object().status
+        old_status = self.get_object().current_status
         order = serializer.save()
         
         # Create status history entry
         OrderStatusHistory.objects.create(
             order=order,
-            status=order.status,
-            notes=f'Status changed from {old_status} to {order.status}',
-            updated_by=self.request.user
+            status=order.current_status,
+            confirmed_by_user=self.request.user
         )
 
 
@@ -105,21 +109,63 @@ class MyOrdersView(generics.ListAPIView):
     """Get orders for the current customer."""
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['status', 'delivery_type']
+    filterset_fields = ['current_status', 'is_completed']
     ordering_fields = ['created_at', 'total_amount']
     
     def get_queryset(self):
-        return Order.objects.filter(customer=self.request.user)
+        try:
+            customer = Customer.objects.get(user=self.request.user)
+            return Order.objects.filter(customer=customer)
+        except Customer.DoesNotExist:
+            return Order.objects.none()
 
 
 class VendorOrdersView(generics.ListAPIView):
     """Get orders for the current vendor."""
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['status', 'delivery_type']
+    filterset_fields = ['current_status', 'is_completed']
     ordering_fields = ['created_at', 'total_amount']
     
     def get_queryset(self):
         if hasattr(self.request.user, 'vendor_profile'):
             return Order.objects.filter(vendor=self.request.user.vendor_profile)
         return Order.objects.none()
+
+
+class ReviewCreateView(generics.CreateAPIView):
+    """Create a review for a completed order."""
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        """Create review with customer and vendor from order."""
+        order = get_object_or_404(Order, pk=self.kwargs['order_id'])
+        
+        # Check if review already exists
+        if Review.objects.filter(order=order).exists():
+            raise serializers.ValidationError("Review already exists for this order.")
+        
+        # Get customer profile
+        try:
+            customer = Customer.objects.get(user=self.request.user)
+        except Customer.DoesNotExist:
+            raise serializers.ValidationError("Customer profile not found.")
+        
+        # Verify order belongs to customer
+        if order.customer != customer:
+            raise serializers.ValidationError("Order does not belong to this customer.")
+        
+        serializer.save(
+            order=order,
+            vendor=order.vendor,
+            customer=customer
+        )
+
+
+class ReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Get, update, or delete a review."""
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = 'pk'

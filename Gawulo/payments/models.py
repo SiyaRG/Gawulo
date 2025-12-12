@@ -39,7 +39,7 @@ class PaymentMethod(models.Model):
     config = models.JSONField(default=dict, blank=True)
     description = models.TextField(blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -98,7 +98,7 @@ class Payment(models.Model):
     notes = models.TextField(blank=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     
@@ -145,7 +145,7 @@ class OfflinePayment(models.Model):
     payment_reference = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     synced = models.BooleanField(default=False)
     sync_attempts = models.PositiveIntegerField(default=0)
     last_sync_attempt = models.DateTimeField(null=True, blank=True)
@@ -159,40 +159,40 @@ class OfflinePayment(models.Model):
 
 class PaymentTransaction(models.Model):
     """
-    Detailed transaction records for payment processing.
+    Payment transaction records for order payments.
     
-    Tracks individual steps in the payment process.
+    Tracks payment transactions with gateway information and status.
     """
     
-    TRANSACTION_TYPES = (
-        ('authorization', 'Authorization'),
-        ('capture', 'Capture'),
-        ('refund', 'Refund'),
-        ('void', 'Void'),
-        ('settlement', 'Settlement'),
-    )
-    
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='transactions')
-    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    id = models.AutoField(primary_key=True)
+    order = models.ForeignKey('orders.Order', on_delete=models.CASCADE, related_name='payment_transactions')
+    transaction_uid = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    gateway_name = models.CharField(max_length=50)
+    amount_settled = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='ZAR')
-    
-    # Gateway Information
-    gateway_transaction_id = models.CharField(max_length=100, blank=True)
-    gateway_response = models.JSONField(default=dict, blank=True)
-    
-    # Status
-    status = models.CharField(max_length=20, choices=Payment.PAYMENT_STATUS, default='pending')
-    error_message = models.TextField(blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    processed_at = models.DateTimeField(null=True, blank=True)
+    gateway_status = models.CharField(max_length=50)
+    transaction_details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
     class Meta:
+        verbose_name = 'Payment Transaction'
+        verbose_name_plural = 'Payment Transactions'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'created_at']),
+            models.Index(fields=['transaction_uid']),
+        ]
     
     def __str__(self):
-        return f"{self.transaction_type} - {self.payment.transaction_id}"
+        return f"Payment {self.transaction_uid or self.id} - {self.gateway_name} - {self.amount_settled} {self.currency}"
+    
+    def save(self, *args, **kwargs):
+        """Prevent modification of created_at on existing records."""
+        if self.pk:
+            # Preserve original created_at when updating
+            original = PaymentTransaction.objects.get(pk=self.pk)
+            self.created_at = original.created_at
+        super().save(*args, **kwargs)
 
 
 class Refund(models.Model):
@@ -215,7 +215,7 @@ class Refund(models.Model):
     status = models.CharField(max_length=20, choices=REFUND_STATUS, default='pending')
     processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     processed_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
@@ -249,7 +249,7 @@ class PaymentGateway(models.Model):
     webhook_url = models.URLField(blank=True)
     config = models.JSONField(default=dict, blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -269,7 +269,7 @@ class CustomerWallet(models.Model):
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     is_active = models.BooleanField(default=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -318,7 +318,7 @@ class WalletTransaction(models.Model):
     reference = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
     class Meta:
         ordering = ['-created_at']

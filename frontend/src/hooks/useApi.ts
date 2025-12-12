@@ -1,7 +1,7 @@
 // React Query hooks for API integration
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../services/api';
-import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory } from '../types/index';
+import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, Country, Language } from '../types/index';
 
 // Authentication hooks
 export const useLogin = () => {
@@ -39,10 +39,16 @@ export const useLogout = () => {
 };
 
 export const useRegister = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation(
     (userData: any) => api.register(userData),
     {
-      // Success/Error handling is done in the component via AlertMessage
+      onSuccess: (data: AuthResponse) => {
+        // Set the user data directly - tokens are already in localStorage from API service
+        queryClient.setQueryData(['user', 'current'], data.user);
+        // Success/Error handling is done in the component via AlertMessage
+      },
     }
   );
 };
@@ -465,6 +471,42 @@ export const useHealthCheck = () => {
       staleTime: 30 * 1000, // 30 seconds
       retry: 3,
       retryDelay: 1000,
+    }
+  );
+};
+
+// Lookup hooks
+export const useCountries = (params?: {
+  search?: string;
+  region?: string;
+  sub_region?: string;
+  ordering?: string;
+}) => {
+  return useQuery(
+    ['countries', params],
+    () => api.getCountries(params),
+    {
+      staleTime: 10 * 60 * 1000, // 10 minutes - countries don't change often
+      cacheTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
+};
+
+export const useLanguages = (params?: {
+  search?: string;
+  type?: string;
+  ordering?: string;
+}) => {
+  return useQuery(
+    ['languages', params],
+    () => api.getLanguages(params),
+    {
+      staleTime: 10 * 60 * 1000, // 10 minutes - languages don't change often
+      cacheTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
     }
   );
 };

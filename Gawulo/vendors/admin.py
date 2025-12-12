@@ -1,90 +1,62 @@
 from django.contrib import admin
-from .models import Vendor, MenuCategory, MenuItem, VendorReview, VendorEarnings, VendorDocument
+from .models import Vendor, ProductService, VendorDocument
 
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
-    list_display = ['business_name', 'user', 'business_type', 'status', 'is_verified', 'rating', 'total_orders']
-    list_filter = ['status', 'business_type', 'is_verified', 'offline_capable']
-    search_fields = ['business_name', 'user__username', 'phone_number', 'email']
-    readonly_fields = ['id', 'created_at', 'updated_at', 'last_sync']
+    list_display = ['name', 'user', 'category', 'is_verified', 'average_rating', 'review_count', 'created_at']
+    list_filter = ['category', 'is_verified', 'created_at']
+    search_fields = ['name', 'user__username', 'user__email']
+    readonly_fields = ['id', 'created_at', 'updated_at']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'user', 'business_name', 'business_type', 'description')
+            'fields': ('id', 'user', 'name', 'category', 'profile_description')
         }),
-        ('Contact Information', {
-            'fields': ('phone_number', 'email', 'address', 'latitude', 'longitude')
-        }),
-        ('Business Settings', {
-            'fields': ('operating_hours', 'delivery_radius', 'minimum_order', 'delivery_fee')
-        }),
-        ('Status & Verification', {
-            'fields': ('status', 'is_verified', 'rating', 'total_orders')
-        }),
-        ('Offline Support', {
-            'fields': ('offline_capable', 'last_sync', 'sync_status')
+        ('Status & Ratings', {
+            'fields': ('is_verified', 'average_rating', 'review_count')
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+            'fields': ('created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
 
-@admin.register(MenuCategory)
-class MenuCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'vendor', 'is_active', 'sort_order']
-    list_filter = ['is_active', 'vendor']
-    search_fields = ['name', 'vendor__business_name']
-    ordering = ['vendor', 'sort_order']
-
-
-@admin.register(MenuItem)
-class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ['name', 'vendor', 'category', 'price', 'availability_status', 'is_featured']
-    list_filter = ['availability_status', 'is_featured', 'category', 'vendor']
-    search_fields = ['name', 'description', 'vendor__business_name']
-    readonly_fields = ['id', 'created_at', 'updated_at', 'last_updated']
+@admin.register(ProductService)
+class ProductServiceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'vendor', 'current_price', 'is_service', 'created_at']
+    list_filter = ['is_service', 'vendor', 'created_at']
+    search_fields = ['name', 'description', 'vendor__name']
+    readonly_fields = ['id', 'created_at']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'vendor', 'category', 'name', 'description')
+            'fields': ('id', 'vendor', 'name', 'description', 'is_service')
         }),
-        ('Pricing & Availability', {
-            'fields': ('price', 'original_price', 'availability_status', 'is_featured')
-        }),
-        ('Media & Details', {
-            'fields': ('image', 'preparation_time', 'allergens', 'dietary_info')
-        }),
-        ('Offline Support', {
-            'fields': ('offline_available', 'last_updated')
+        ('Pricing', {
+            'fields': ('current_price',)
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+            'fields': ('created_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
-
-
-@admin.register(VendorReview)
-class VendorReviewAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'customer', 'rating', 'is_verified_purchase', 'created_at']
-    list_filter = ['rating', 'is_verified_purchase', 'created_at']
-    search_fields = ['vendor__business_name', 'customer__username', 'comment']
-    readonly_fields = ['created_at', 'updated_at']
-
-
-@admin.register(VendorEarnings)
-class VendorEarningsAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'date', 'total_orders', 'total_revenue', 'net_earnings']
-    list_filter = ['date', 'vendor']
-    search_fields = ['vendor__business_name']
-    readonly_fields = ['created_at', 'updated_at']
-    date_hierarchy = 'date'
 
 
 @admin.register(VendorDocument)
 class VendorDocumentAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'document_type', 'is_verified', 'verified_by', 'created_at']
-    list_filter = ['document_type', 'is_verified', 'created_at']
-    search_fields = ['vendor__business_name']
-    readonly_fields = ['created_at', 'updated_at']
+    list_display = ['vendor', 'file_name', 'document_type', 'mime_type', 'created_at']
+    list_filter = ['document_type', 'created_at']
+    search_fields = ['vendor__name', 'file_name']
+    readonly_fields = ['id', 'created_at']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('id', 'vendor', 'file_name', 'document_type')
+        }),
+        ('Storage', {
+            'fields': ('storage_path', 'mime_type')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )

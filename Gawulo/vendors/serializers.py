@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Vendor, MenuItem, MenuCategory, VendorReview
+from .models import Vendor, ProductService
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,68 +12,35 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
-class MenuCategorySerializer(serializers.ModelSerializer):
-    """Serializer for MenuCategory model."""
+class ProductServiceSerializer(serializers.ModelSerializer):
+    """Serializer for ProductService model."""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     
     class Meta:
-        model = MenuCategory
-        fields = ['id', 'name', 'description', 'is_active', 'sort_order']
-
-
-class MenuItemSerializer(serializers.ModelSerializer):
-    """Serializer for MenuItem model."""
-    category = MenuCategorySerializer(read_only=True)
-    vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
-    
-    class Meta:
-        model = MenuItem
+        model = ProductService
         fields = [
-            'id', 'vendor', 'vendor_name', 'category', 'name', 'description',
-            'price', 'original_price', 'availability_status', 'is_featured',
-            'image', 'preparation_time', 'allergens', 'dietary_info',
-            'offline_available', 'last_updated', 'created_at', 'updated_at'
+            'id', 'vendor', 'vendor_name', 'name', 'description',
+            'current_price', 'is_service', 'created_at'
         ]
-        read_only_fields = ['id', 'last_updated', 'created_at', 'updated_at']
-
-
-class VendorReviewSerializer(serializers.ModelSerializer):
-    """Serializer for VendorReview model."""
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
-    
-    class Meta:
-        model = VendorReview
-        fields = [
-            'id', 'vendor', 'customer', 'customer_name', 'rating', 'comment',
-            'is_verified_purchase', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class VendorSerializer(serializers.ModelSerializer):
     """Serializer for Vendor model."""
     user = UserSerializer(read_only=True)
-    menu_items = MenuItemSerializer(many=True, read_only=True)
-    reviews = VendorReviewSerializer(many=True, read_only=True)
-    average_rating = serializers.SerializerMethodField()
+    products_services = ProductServiceSerializer(many=True, read_only=True, source='products_services')
     
     class Meta:
         model = Vendor
         fields = [
-            'id', 'user', 'business_name', 'business_type', 'description',
-            'phone_number', 'email', 'address', 'latitude', 'longitude',
-            'operating_hours', 'delivery_radius', 'minimum_order', 'delivery_fee',
-            'status', 'is_verified', 'rating', 'total_orders', 'offline_capable',
-            'last_sync', 'sync_status', 'created_at', 'updated_at',
-            'menu_items', 'reviews', 'average_rating'
+            'id', 'user', 'name', 'category', 'profile_description',
+            'is_verified', 'average_rating', 'review_count',
+            'created_at', 'updated_at', 'products_services'
         ]
         read_only_fields = [
-            'id', 'rating', 'total_orders', 'last_sync', 'sync_status',
-            'created_at', 'updated_at', 'menu_items', 'reviews', 'average_rating'
+            'id', 'average_rating', 'review_count',
+            'created_at', 'updated_at', 'products_services'
         ]
-    
-    def get_average_rating(self, obj):
-        """Calculate average rating from reviews."""
-        return obj.get_average_rating()
 
 
 class VendorRegistrationSerializer(serializers.ModelSerializer):
@@ -81,14 +48,14 @@ class VendorRegistrationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
+    username = serializers.CharField(write_only=True)
+    email = serializers.EmailField(write_only=True)
     
     class Meta:
         model = Vendor
         fields = [
-            'id', 'user', 'business_name', 'business_type', 'description',
-            'phone_number', 'email', 'address', 'latitude', 'longitude',
-            'operating_hours', 'delivery_radius', 'minimum_order', 'delivery_fee',
-            'password', 'confirm_password'
+            'id', 'user', 'name', 'category', 'profile_description',
+            'username', 'email', 'password', 'confirm_password'
         ]
         read_only_fields = ['id', 'user']
     
@@ -102,11 +69,13 @@ class VendorRegistrationSerializer(serializers.ModelSerializer):
         """Create a new vendor with user account."""
         password = validated_data.pop('password')
         confirm_password = validated_data.pop('confirm_password')
+        username = validated_data.pop('username')
+        email = validated_data.pop('email')
         
         # Create user account
         user = User.objects.create_user(
-            username=validated_data.get('business_name', '').lower().replace(' ', '_'),
-            email=validated_data.get('email', ''),
+            username=username,
+            email=email,
             password=password
         )
         

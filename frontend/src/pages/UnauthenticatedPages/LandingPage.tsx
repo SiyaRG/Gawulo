@@ -177,7 +177,7 @@ const LandingPage: React.FC = () => {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/register')}
                 sx={{
                   backgroundColor: BRAND_COLORS.primary,
                   color: BRAND_COLORS.white,
@@ -194,11 +194,12 @@ const LandingPage: React.FC = () => {
                   },
                 }}
               >
-                Eliminate Uncertainty Now
+                Get Started Free
               </Button>
               <Button
                 variant="outlined"
                 size="large"
+                onClick={() => navigate('/login')}
                 sx={{
                   borderColor: BRAND_COLORS.accent,
                   borderWidth: 2,
@@ -216,7 +217,7 @@ const LandingPage: React.FC = () => {
                   },
                 }}
               >
-                Learn How
+                Sign In
               </Button>
             </Stack>
           </Box>

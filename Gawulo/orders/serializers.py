@@ -1,115 +1,123 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, OrderStatusHistory, OrderRating
-from vendors.serializers import VendorSerializer, MenuItemSerializer
-from vendors.models import MenuItem
+from .models import Order, OrderLineItem, OrderStatusHistory, Review
+from vendors.serializers import VendorSerializer, ProductServiceSerializer
+from vendors.models import ProductService
+from auth_api.models import Customer
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
-    """Serializer for OrderItem model."""
-    menu_item = MenuItemSerializer(read_only=True)
-    menu_item_id = serializers.UUIDField(write_only=True)
+class OrderLineItemSerializer(serializers.ModelSerializer):
+    """Serializer for OrderLineItem model."""
+    product_service = ProductServiceSerializer(read_only=True)
+    product_service_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
-        model = OrderItem
+        model = OrderLineItem
         fields = [
-            'id', 'menu_item', 'menu_item_id', 'quantity', 'unit_price', 
-            'total_price', 'special_instructions', 'customizations',
-            'created_at', 'updated_at'
+            'id', 'product_service', 'product_service_id', 'quantity', 
+            'unit_price_snapshot', 'discount_applied', 'line_total',
+            'quantity_fulfilled'
         ]
-        read_only_fields = ['id', 'unit_price', 'total_price', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'line_total', 'quantity_fulfilled']
 
 
 class OrderStatusHistorySerializer(serializers.ModelSerializer):
     """Serializer for OrderStatusHistory model."""
-    updated_by_name = serializers.CharField(source='updated_by.username', read_only=True)
+    confirmed_by_name = serializers.CharField(source='confirmed_by_user.username', read_only=True)
     
     class Meta:
         model = OrderStatusHistory
         fields = [
-            'id', 'order', 'status', 'notes', 'updated_by', 'updated_by_name', 'created_at'
+            'id', 'order', 'status', 'confirmed_by_user', 'confirmed_by_name', 'timestamp'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'timestamp']
 
 
-class OrderRatingSerializer(serializers.ModelSerializer):
-    """Serializer for OrderRating model."""
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
+class ReviewSerializer(serializers.ModelSerializer):
+    """Serializer for Review model."""
+    customer_name = serializers.CharField(source='customer.display_name', read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     
     class Meta:
-        model = OrderRating
+        model = Review
         fields = [
-            'id', 'order', 'customer', 'customer_name', 'rating', 'comment',
-            'food_quality', 'delivery_speed', 'service_quality',
-            'created_at', 'updated_at'
+            'id', 'order', 'vendor', 'vendor_name', 'customer', 'customer_name',
+            'rating', 'comment', 'created_at'
         ]
-        read_only_fields = ['id', 'customer', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'order', 'vendor', 'customer', 'created_at']
 
 
 class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model."""
     vendor = VendorSerializer(read_only=True)
-    items = OrderItemSerializer(many=True, read_only=True)
+    line_items = OrderLineItemSerializer(many=True, read_only=True)
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
-    rating = OrderRatingSerializer(read_only=True)
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
-    total_items = serializers.SerializerMethodField()
+    review = ReviewSerializer(read_only=True)
+    customer_name = serializers.CharField(source='customer.display_name', read_only=True)
     
     class Meta:
         model = Order
         fields = [
-            'id', 'order_number', 'customer', 'customer_name', 'vendor',
-            'delivery_type', 'delivery_address', 'delivery_instructions',
-            'special_instructions', 'subtotal', 'delivery_fee', 'tax_amount',
-            'total_amount', 'status', 'estimated_delivery_time',
-            'actual_delivery_time', 'created_offline', 'synced_to_server',
-            'sync_timestamp', 'created_at', 'updated_at', 'items',
-            'status_history', 'rating', 'total_items'
+            'id', 'order_uid', 'customer', 'customer_name', 'vendor',
+            'total_amount', 'current_status', 'is_completed',
+            'created_at', 'updated_at', 'line_items',
+            'status_history', 'review'
         ]
         read_only_fields = [
-            'id', 'order_number', 'subtotal', 'delivery_fee', 'tax_amount',
-            'total_amount', 'created_offline', 'synced_to_server', 'sync_timestamp',
-            'created_at', 'updated_at', 'items', 'status_history', 'rating', 'total_items'
+            'id', 'order_uid', 'total_amount', 'created_at', 'updated_at',
+            'line_items', 'status_history', 'review'
         ]
-    
-    def get_total_items(self, obj):
-        """Get total number of items in the order."""
-        return obj.get_total_items()
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new orders."""
-    items = OrderItemSerializer(many=True)
-    vendor_id = serializers.UUIDField(write_only=True)
+    line_items = OrderLineItemSerializer(many=True)
+    vendor_id = serializers.IntegerField(write_only=True)
     
     class Meta:
         model = Order
         fields = [
-            'vendor_id', 'delivery_type', 'delivery_address', 'delivery_instructions',
-            'special_instructions', 'items'
+            'vendor_id', 'line_items'
         ]
     
     def create(self, validated_data):
-        """Create order with items."""
-        items_data = validated_data.pop('items')
+        """Create order with line items."""
+        line_items_data = validated_data.pop('line_items')
         vendor_id = validated_data.pop('vendor_id')
+        
+        from vendors.models import Vendor
+        vendor = Vendor.objects.get(id=vendor_id)
         
         # Create order
         order = Order.objects.create(
-            vendor_id=vendor_id,
-            **validated_data
+            vendor=vendor,
+            total_amount=0,  # Will be calculated after line items
+            current_status='Confirmed'
         )
         
-        # Create order items
-        for item_data in items_data:
-            menu_item_id = item_data.pop('menu_item_id')
-            menu_item = MenuItem.objects.get(id=menu_item_id)
+        # Create order line items and calculate total
+        total_amount = 0
+        for item_data in line_items_data:
+            product_service_id = item_data.pop('product_service_id')
+            product_service = ProductService.objects.get(id=product_service_id)
             
-            OrderItem.objects.create(
+            # Calculate line total
+            unit_price = product_service.current_price
+            quantity = item_data.get('quantity', 1)
+            discount = item_data.get('discount_applied', 0.0)
+            line_total = (unit_price * quantity) - discount
+            total_amount += line_total
+            
+            OrderLineItem.objects.create(
                 order=order,
-                menu_item=menu_item,
-                unit_price=menu_item.price,
+                product_service=product_service,
+                unit_price_snapshot=unit_price,
+                line_total=line_total,
                 **item_data
             )
+        
+        # Update order total
+        order.total_amount = total_amount
+        order.save()
         
         return order
 
@@ -119,26 +127,25 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Order
-        fields = ['status']
+        fields = ['current_status']
     
-    def validate_status(self, value):
+    def validate_current_status(self, value):
         """Validate status transition."""
         order = self.instance
         valid_transitions = {
-            'pending': ['confirmed', 'cancelled'],
-            'confirmed': ['preparing', 'cancelled'],
-            'preparing': ['ready', 'cancelled'],
-            'ready': ['out_for_delivery', 'cancelled'],
-            'out_for_delivery': ['delivered', 'cancelled'],
-            'delivered': [],
-            'cancelled': [],
-            'failed': []
+            'Confirmed': ['Processing', 'Cancelled'],
+            'Pending': ['Confirmed', 'Cancelled'],
+            'Processing': ['Shipped', 'Cancelled'],
+            'Shipped': ['Delivered', 'Cancelled'],
+            'Delivered': [],
+            'Cancelled': [],
+            'Refunded': []
         }
         
-        current_status = order.status
+        current_status = order.current_status
         allowed_transitions = valid_transitions.get(current_status, [])
         
-        if value not in allowed_transitions:
+        if value not in allowed_transitions and value != current_status:
             raise serializers.ValidationError(
                 f"Cannot transition from {current_status} to {value}"
             )

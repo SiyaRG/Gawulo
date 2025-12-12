@@ -1,19 +1,21 @@
 // API service for Django backend integration
-import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory } from '../types/index';
+import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language } from '../types/index';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9033/api';
 
 class ApiService {
   private baseURL: string;
-  private authToken: string | null = null;
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
-    this.authToken = localStorage.getItem('authToken');
+    this.accessToken = localStorage.getItem('accessToken');
+    this.refreshToken = localStorage.getItem('refreshToken');
   }
 
   // Authentication methods
-  async login(username: string, password: string): Promise<{ user: User; token: string }> {
+  async login(username: string, password: string): Promise<AuthResponse> {
     const response = await fetch(`${this.baseURL}/auth/login/`, {
       method: 'POST',
       headers: {
@@ -27,22 +29,36 @@ class ApiService {
       throw new Error(errorData.error || 'Login failed');
     }
 
-    const data = await response.json();
-    this.authToken = data.token;
-    localStorage.setItem('authToken', data.token);
+    const data: AuthResponse = await response.json();
+    this.accessToken = data.access;
+    this.refreshToken = data.refresh;
+    localStorage.setItem('accessToken', data.access);
+    localStorage.setItem('refreshToken', data.refresh);
     return data;
   }
 
   async logout(): Promise<void> {
-    await fetch(`${this.baseURL}/auth/logout/`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-    });
-    this.authToken = null;
-    localStorage.removeItem('authToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    try {
+      await fetch(`${this.baseURL}/auth/logout/`, {
+        method: 'POST',
+        headers: {
+          ...this.getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+    } catch (error) {
+      // Continue with logout even if API call fails
+      console.error('Logout API call failed:', error);
+    }
+    this.accessToken = null;
+    this.refreshToken = null;
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   }
 
-  async register(userData: any): Promise<User> {
+  async register(userData: any): Promise<AuthResponse> {
     const response = await fetch(`${this.baseURL}/auth/register/`, {
       method: 'POST',
       headers: {
@@ -52,10 +68,49 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error('Registration failed');
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 
+        (typeof errorData === 'object' && Object.keys(errorData).length > 0 
+          ? JSON.stringify(errorData) 
+          : 'Registration failed');
+      throw new Error(errorMessage);
     }
 
-    return response.json();
+    const data: AuthResponse = await response.json();
+    this.accessToken = data.access;
+    this.refreshToken = data.refresh;
+    localStorage.setItem('accessToken', data.access);
+    localStorage.setItem('refreshToken', data.refresh);
+    return data;
+  }
+
+  async refreshAccessToken(): Promise<TokenRefreshResponse> {
+    const refreshTokenValue = localStorage.getItem('refreshToken');
+    if (!refreshTokenValue) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh: refreshTokenValue }),
+    });
+
+    if (!response.ok) {
+      // Clear tokens if refresh fails
+      this.accessToken = null;
+      this.refreshToken = null;
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      throw new Error('Token refresh failed');
+    }
+
+    const data: TokenRefreshResponse = await response.json();
+    this.accessToken = data.access;
+    localStorage.setItem('accessToken', data.access);
+    return data;
   }
 
   // Vendor methods
@@ -473,16 +528,16 @@ class ApiService {
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {};
     // Always read from localStorage to ensure token is current
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     if (token) {
-      headers['Authorization'] = `Token ${token}`;
+      headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
   }
 
   async getCurrentUser(): Promise<User | null> {
     // Check token first - if no token, return null immediately without API call
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     if (!token) {
       return null;
     }
@@ -494,14 +549,150 @@ class ApiService {
       if (response.ok) {
         return response.json();
       }
-      // If token is invalid, remove it
+      // If token is invalid, try to refresh it
       if (response.status === 401) {
-        localStorage.removeItem('authToken');
+        try {
+          await this.refreshAccessToken();
+          // Retry the request with new token
+          const retryResponse = await fetch(`${this.baseURL}/auth/user/`, {
+            headers: this.getAuthHeaders(),
+          });
+          if (retryResponse.ok) {
+            return retryResponse.json();
+          }
+        } catch {
+          // Refresh failed, clear tokens
+          this.accessToken = null;
+          this.refreshToken = null;
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
       }
       return null;
     } catch {
       return null;
     }
+  }
+
+  // User profile methods
+  async updateProfile(profileData: ProfileUpdateForm): Promise<User> {
+    // TODO: Implement when backend endpoint is available
+    // This is a placeholder for the future profile update endpoint
+    const response = await fetch(`${this.baseURL}/auth/profile/update/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(profileData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to update profile');
+    }
+
+    return response.json();
+  }
+
+  // Lookup methods
+  async getCountries(params?: {
+    search?: string;
+    region?: string;
+    sub_region?: string;
+    ordering?: string;
+  }): Promise<{ count: number; results: Country[] }> {
+    const allResults: Country[] = [];
+    let nextUrl: string | null = `${this.baseURL}/lookups/countries/`;
+    
+    // Build initial URL with params
+    const baseUrl = new URL(nextUrl);
+    baseUrl.searchParams.append('page_size', '1000'); // Request large page size
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && key !== 'page_size') baseUrl.searchParams.append(key, value);
+      });
+    }
+    nextUrl = baseUrl.toString();
+
+    // Fetch all pages
+    while (nextUrl) {
+      const response: Response = await fetch(nextUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch countries');
+      }
+
+      const data: any = await response.json();
+      
+      // Handle different response formats
+      if (Array.isArray(data)) {
+        // If response is directly an array
+        allResults.push(...data);
+        nextUrl = null;
+      } else if (data.results && Array.isArray(data.results)) {
+        // Standard paginated response
+        allResults.push(...data.results);
+        nextUrl = data.next || null;
+      } else {
+        // Fallback
+        allResults.push(...(data.results || []));
+        nextUrl = null;
+      }
+    }
+
+    return {
+      count: allResults.length,
+      results: allResults,
+    };
+  }
+
+  async getLanguages(params?: {
+    search?: string;
+    type?: string;
+    ordering?: string;
+  }): Promise<{ count: number; results: Language[] }> {
+    const allResults: Language[] = [];
+    let nextUrl: string | null = `${this.baseURL}/lookups/languages/`;
+    
+    // Build initial URL with params
+    const baseUrl = new URL(nextUrl);
+    baseUrl.searchParams.append('page_size', '1000'); // Request large page size
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && key !== 'page_size') baseUrl.searchParams.append(key, value);
+      });
+    }
+    nextUrl = baseUrl.toString();
+
+    // Fetch all pages
+    while (nextUrl) {
+      const response: Response = await fetch(nextUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch languages');
+      }
+
+      const data: any = await response.json();
+      
+      // Handle different response formats
+      if (Array.isArray(data)) {
+        // If response is directly an array
+        allResults.push(...data);
+        nextUrl = null;
+      } else if (data.results && Array.isArray(data.results)) {
+        // Standard paginated response
+        allResults.push(...data.results);
+        nextUrl = data.next || null;
+      } else {
+        // Fallback
+        allResults.push(...(data.results || []));
+        nextUrl = null;
+      }
+    }
+
+    return {
+      count: allResults.length,
+      results: allResults,
+    };
   }
 
   // Health check

@@ -131,30 +131,43 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
-      <MenuItem onClick={() => handleNavigation('/home')}>
-        <Dashboard sx={{ mr: 1 }} />
-        Dashboard
-      </MenuItem>
-      <MenuItem onClick={() => handleNavigation('/vendor')}>
-        <Dashboard sx={{ mr: 1 }} />
-        Vendor Dashboard
-      </MenuItem>
-      <MenuItem onClick={() => handleNavigation('/customer')}>
-        <ShoppingCart sx={{ mr: 1 }} />
-        Customer Dashboard
-      </MenuItem>
-      <MenuItem onClick={() => handleNavigation('/profile')}>
-        <Person sx={{ mr: 1 }} />
-        Profile
-      </MenuItem>
-      <MenuItem onClick={() => handleNavigation('/settings')}>
-        <Settings sx={{ mr: 1 }} />
-        Settings
-      </MenuItem>
-      <MenuItem onClick={handleLogout}>
-        <Logout sx={{ mr: 1 }} />
-        Logout
-      </MenuItem>
+      {appState.isAuthenticated ? (
+        <>
+          <MenuItem onClick={() => handleNavigation('/home')}>
+            <Dashboard sx={{ mr: 1 }} />
+            Dashboard
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigation('/vendor')}>
+            <Dashboard sx={{ mr: 1 }} />
+            Vendor Dashboard
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigation('/customer')}>
+            <ShoppingCart sx={{ mr: 1 }} />
+            Customer Dashboard
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigation('/profile')}>
+            <Person sx={{ mr: 1 }} />
+            Profile
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigation('/settings')}>
+            <Settings sx={{ mr: 1 }} />
+            Settings
+          </MenuItem>
+          <MenuItem onClick={handleLogout}>
+            <Logout sx={{ mr: 1 }} />
+            Logout
+          </MenuItem>
+        </>
+      ) : (
+        <>
+          <MenuItem onClick={() => handleNavigation('/login')}>
+            Sign In
+          </MenuItem>
+          <MenuItem onClick={() => handleNavigation('/register')}>
+            Sign Up
+          </MenuItem>
+        </>
+      )}
     </Menu>
   );
 
@@ -290,31 +303,55 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
           </Button>
         </Box>
 
-        {/* CTA Button Right */}
+        {/* CTA Buttons Right */}
         {!appState.isAuthenticated ? (
-          <Button
-            variant="contained"
-            onClick={() => navigate('/login')}
-            sx={{
-              display: { xs: 'none', md: 'inline-flex' },
-              alignItems: 'center',
-              justifyContent: 'center',
-              px: 2,
-              py: 0.75,
-              border: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              borderRadius: '9999px',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-              backgroundColor: '#27AE60',
-              color: '#FFFFFF',
-              '&:hover': {
-                backgroundColor: 'rgba(39, 174, 96, 0.9)',
-              },
-            }}
-          >
-            Get Started
-          </Button>
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/login')}
+              sx={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                px: 2,
+                py: 0.75,
+                borderColor: '#27AE60',
+                borderWidth: 1.5,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                borderRadius: '9999px',
+                color: '#27AE60',
+                '&:hover': {
+                  borderColor: '#1E7D47',
+                  borderWidth: 1.5,
+                  backgroundColor: 'rgba(39, 174, 96, 0.05)',
+                },
+              }}
+            >
+              Sign In
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/register')}
+              sx={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                px: 2,
+                py: 0.75,
+                border: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                borderRadius: '9999px',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                backgroundColor: '#27AE60',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: 'rgba(39, 174, 96, 0.9)',
+                },
+              }}
+            >
+              Sign Up
+            </Button>
+          </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, color: '#333333' }}>
