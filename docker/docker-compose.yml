@@ -4,20 +4,20 @@ services:
   # MySQL Database
   db:
     image: mysql:8.0
-    container_name: gawulo_db
+    container_name: reachhub_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: gawulo_root_password
-      MYSQL_DATABASE: gawulo_db
-      MYSQL_USER: gawulo_user
-      MYSQL_PASSWORD: gawulo_password
+      MYSQL_ROOT_PASSWORD: reachhub_root_password
+      MYSQL_DATABASE: reachhub_db
+      MYSQL_USER: reachhub_user
+      MYSQL_PASSWORD: reachhub_password
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d
     networks:
-      - gawulo_network
+      - reachhub_network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
@@ -26,14 +26,14 @@ services:
   # Redis for caching and sessions
   redis:
     image: redis:7-alpine
-    container_name: gawulo_redis
+    container_name: reachhub_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - gawulo_network
+      - reachhub_network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -45,12 +45,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    container_name: gawulo_backend
+    container_name: reachhub_backend
     restart: unless-stopped
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=gawulo.settings.production
-      - DATABASE_URL=mysql://gawulo_user:gawulo_password@db:3306/gawulo_db
+      - DATABASE_URL=mysql://reachhub_user:reachhub_password@db:3306/reachhub_db
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
@@ -67,7 +67,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - gawulo_network
+      - reachhub_network
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -78,12 +78,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    container_name: gawulo_celery_worker
+    container_name: reachhub_celery_worker
     restart: unless-stopped
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=gawulo.settings.production
-      - DATABASE_URL=mysql://gawulo_user:gawulo_password@db:3306/gawulo_db
+      - DATABASE_URL=mysql://reachhub_user:reachhub_password@db:3306/reachhub_db
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
     volumes:
@@ -94,7 +94,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - gawulo_network
+      - reachhub_network
     command: celery -A gawulo worker --loglevel=info
 
   # Celery Beat Scheduler
@@ -102,12 +102,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    container_name: gawulo_celery_beat
+    container_name: reachhub_celery_beat
     restart: unless-stopped
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=gawulo.settings.production
-      - DATABASE_URL=mysql://gawulo_user:gawulo_password@db:3306/gawulo_db
+      - DATABASE_URL=mysql://reachhub_user:reachhub_password@db:3306/reachhub_db
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
     volumes:
@@ -118,7 +118,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - gawulo_network
+      - reachhub_network
     command: celery -A gawulo beat --loglevel=info
 
   # React Frontend
@@ -126,7 +126,7 @@ services:
     build:
       context: ../frontend
       dockerfile: ../docker/Dockerfile.frontend
-    container_name: gawulo_frontend
+    container_name: reachhub_frontend
     restart: unless-stopped
     environment:
       - REACT_APP_API_URL=http://localhost:8000
@@ -139,13 +139,13 @@ services:
     depends_on:
       - backend
     networks:
-      - gawulo_network
+      - reachhub_network
     command: npm start
 
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: gawulo_nginx
+    container_name: reachhub_nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -159,7 +159,7 @@ services:
       - backend
       - frontend
     networks:
-      - gawulo_network
+      - reachhub_network
 
 volumes:
   mysql_data:
@@ -172,5 +172,5 @@ volumes:
     driver: local
 
 networks:
-  gawulo_network:
+  reachhub_network:
     driver: bridge

@@ -1,4 +1,4 @@
-Write-Host "Starting Gawulo Development Environment..." -ForegroundColor Green
+Write-Host "Starting ReachHub Development Environment..." -ForegroundColor Green
 Write-Host ""
 
 # Start Django Backend Server

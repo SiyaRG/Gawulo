@@ -1,6 +1,5 @@
 // React Query hooks for API integration
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory } from '../types/index';
 
@@ -13,15 +12,10 @@ export const useLogin = () => {
       api.login(username, password),
     {
       onSuccess: (data) => {
-        // Set new user data and invalidate auth queries
+        // Set the user data directly - token is already in localStorage from API service
+        // No need to invalidate - we're setting fresh data from the login response
         queryClient.setQueryData(['user', 'current'], data.user);
-        queryClient.setQueryData(['auth', 'status'], true);
-        queryClient.invalidateQueries(['user', 'current']);
-        queryClient.invalidateQueries(['auth', 'status']);
-        toast.success('Login successful!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Login failed');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -34,16 +28,11 @@ export const useLogout = () => {
     () => api.logout(),
     {
       onSuccess: () => {
-        // Reset auth queries and invalidate them
+        // Clear user data and reset query to ensure clean state for next login
         queryClient.setQueryData(['user', 'current'], null);
-        queryClient.setQueryData(['auth', 'status'], false);
-        queryClient.invalidateQueries(['user', 'current']);
-        queryClient.invalidateQueries(['auth', 'status']);
-        toast.success('Logged out successfully');
+        queryClient.resetQueries(['user', 'current'], { exact: true });
+        // Success/Error handling is done in the component via AlertMessage
         // Note: Navigation will be handled by the TopNavigation component
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Logout failed');
       },
     }
   );
@@ -53,12 +42,7 @@ export const useRegister = () => {
   return useMutation(
     (userData: any) => api.register(userData),
     {
-      onSuccess: () => {
-        toast.success('Registration successful!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Registration failed');
-      },
+      // Success/Error handling is done in the component via AlertMessage
     }
   );
 };
@@ -122,10 +106,7 @@ export const useRegisterVendor = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('vendors');
-        toast.success('Vendor registration successful!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Vendor registration failed');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -141,10 +122,7 @@ export const useUpdateVendor = () => {
       onSuccess: (data, variables) => {
         queryClient.invalidateQueries(['vendor', variables.id]);
         queryClient.invalidateQueries('vendors');
-        toast.success('Vendor updated successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to update vendor');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -212,10 +190,7 @@ export const useCreateMenuItem = () => {
       onSuccess: (data) => {
         queryClient.invalidateQueries('menu-items');
         queryClient.invalidateQueries(['vendor', data.vendor, 'menu']);
-        toast.success('Menu item created successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to create menu item');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -232,10 +207,7 @@ export const useUpdateMenuItem = () => {
         queryClient.invalidateQueries(['menu-item', variables.id]);
         queryClient.invalidateQueries('menu-items');
         queryClient.invalidateQueries(['vendor', data.vendor, 'menu']);
-        toast.success('Menu item updated successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to update menu item');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -250,10 +222,7 @@ export const useDeleteMenuItem = () => {
       onSuccess: (_, id) => {
         queryClient.invalidateQueries('menu-items');
         queryClient.removeQueries(['menu-item', id]);
-        toast.success('Menu item deleted successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to delete menu item');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -278,10 +247,7 @@ export const useCreateCategory = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('categories');
-        toast.success('Category created successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to create category');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -360,10 +326,7 @@ export const useCreateOrder = () => {
         queryClient.invalidateQueries('orders');
         queryClient.invalidateQueries(['orders', 'my']);
         queryClient.invalidateQueries(['orders', 'vendor']);
-        toast.success('Order created successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to create order');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -381,10 +344,7 @@ export const useUpdateOrder = () => {
         queryClient.invalidateQueries('orders');
         queryClient.invalidateQueries(['orders', 'my']);
         queryClient.invalidateQueries(['orders', 'vendor']);
-        toast.success('Order updated successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to update order');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -402,10 +362,7 @@ export const useUpdateOrderStatus = () => {
         queryClient.invalidateQueries('orders');
         queryClient.invalidateQueries(['orders', 'my']);
         queryClient.invalidateQueries(['orders', 'vendor']);
-        toast.success(`Order status updated to ${variables.status}`);
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to update order status');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -422,10 +379,7 @@ export const useDeleteOrder = () => {
         queryClient.invalidateQueries(['orders', 'my']);
         queryClient.invalidateQueries(['orders', 'vendor']);
         queryClient.removeQueries(['order', id]);
-        toast.success('Order deleted successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to delete order');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
@@ -480,39 +434,23 @@ export const useCreateReview = () => {
       onSuccess: (data, variables) => {
         queryClient.invalidateQueries(['vendor', variables.vendorId, 'reviews']);
         queryClient.invalidateQueries(['vendor', variables.vendorId]);
-        toast.success('Review submitted successfully!');
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || 'Failed to submit review');
+        // Success/Error handling is done in the component via AlertMessage
       },
     }
   );
 };
 
 // User hooks
+// Single source of truth: if currentUser exists, user is authenticated
 export const useCurrentUser = () => {
   return useQuery(
     ['user', 'current'],
     () => api.getCurrentUser(),
     {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: 30 * 1000, // 30 seconds - short enough to refetch after logout/login
+      cacheTime: 5 * 60 * 1000, // 5 minutes
       retry: false,
-      refetchOnMount: true,
-      refetchOnWindowFocus: false,
-    }
-  );
-};
-
-export const useIsAuthenticated = () => {
-  return useQuery(
-    ['auth', 'status'],
-    () => api.isAuthenticated(),
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      retry: false,
-      refetchOnMount: true,
+      refetchOnMount: true, // Refetch on mount to ensure fresh state after logout
       refetchOnWindowFocus: false,
     }
   );

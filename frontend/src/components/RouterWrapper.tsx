@@ -4,7 +4,7 @@ import { useRouteChange } from '../hooks/useRouteChange';
 import Layout from './Layout';
 import OfflineIndicator from './OfflineIndicator';
 import LoginForm from './LoginForm';
-import LandingPage from '../pages/LandingPage';
+import LandingPage from '../pages/UnauthenticatedPages/LandingPage';
 import HomePage from '../pages/HomePage';
 import VendorDashboard from '../pages/VendorDashboard';
 import CustomerDashboard from '../pages/CustomerDashboard';
@@ -12,6 +12,9 @@ import OrderTracking from '../pages/OrderTracking';
 import PaymentPage from '../pages/PaymentPage';
 import ProfilePage from '../pages/ProfilePage';
 import SettingsPage from '../pages/SettingsPage';
+import Services from '../pages/UnauthenticatedPages/Services';
+import About from '../pages/UnauthenticatedPages/About';
+import Contact from '../pages/UnauthenticatedPages/Contact';
 import { AppState } from '../types/index';
 
 interface RouterWrapperProps {
@@ -33,6 +36,21 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
       <Route path="/login" element={
         <Layout appState={appState}>
           <LoginForm />
+        </Layout>
+      } />
+      <Route path="/services" element={
+        <Layout appState={appState}>
+          <Services />
+        </Layout>
+      } />
+      <Route path="/about" element={
+        <Layout appState={appState}>
+          <About />
+        </Layout>
+      } />
+      <Route path="/contact" element={
+        <Layout appState={appState}>
+          <Contact />
         </Layout>
       } />
       

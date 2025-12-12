@@ -1,4 +1,4 @@
-// Core types for the Gawulo offline-first food ordering system
+// Core types for the ReachHub Trust as a Service platform
 
 export interface User {
   id: number;

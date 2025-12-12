@@ -1,5 +1,5 @@
 """
-Payment models for the Gawulo offline-first food ordering system.
+Payment models for the ReachHub Trust as a Service platform.
 
 Defines models for payment processing, transaction tracking,
 and offline payment capabilities.
@@ -14,7 +14,7 @@ import uuid
 
 class PaymentMethod(models.Model):
     """
-    Available payment methods for the Gawulo system.
+    Available payment methods for the ReachHub system.
     
     Supports both online and offline payment options.
     """

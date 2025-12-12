@@ -15,7 +15,7 @@ const LoadingScreen: React.FC = () => {
     >
       <CircularProgress size={60} sx={{ mb: 3 }} />
       <Typography variant="h6" color="text.secondary">
-        Loading Gawulo...
+        Loading ReachHub...
       </Typography>
     </Box>
   );

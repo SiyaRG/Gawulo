@@ -1,5 +1,5 @@
 """
-Offline synchronization utilities for Gawulo system.
+Offline synchronization utilities for ReachHub system.
 
 This module handles data synchronization between local storage and server
 when connectivity is available, implementing conflict resolution strategies.
@@ -27,7 +27,7 @@ class OfflineSyncManager:
     """
     
     def __init__(self):
-        self.sync_queue_key = "gawulo_sync_queue"
+        self.sync_queue_key = "reachhub_sync_queue"
         self.conflict_resolution_strategy = "server_wins"  # or "client_wins", "manual"
     
     def add_to_sync_queue(self, operation_type: str, data: Dict[str, Any], 
@@ -148,7 +148,7 @@ class OfflineSyncManager:
             'queue_length': len(queue),
             'pending_operations': len([op for op in queue if op['status'] == 'pending']),
             'failed_operations': len([op for op in queue if op['status'] == 'failed']),
-            'last_sync_attempt': cache.get('gawulo_last_sync_attempt'),
+            'last_sync_attempt': cache.get('reachhub_last_sync_attempt'),
             'is_online': self._check_connectivity()
         }
     

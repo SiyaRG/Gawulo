@@ -472,30 +472,31 @@ class ApiService {
   // Utility methods
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {};
-    if (this.authToken) {
-      headers['Authorization'] = `Token ${this.authToken}`;
+    // Always read from localStorage to ensure token is current
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      headers['Authorization'] = `Token ${token}`;
     }
     return headers;
   }
 
-  async isAuthenticated(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseURL}/auth/user/`, {
-        headers: this.getAuthHeaders(),
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
-
   async getCurrentUser(): Promise<User | null> {
+    // Check token first - if no token, return null immediately without API call
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return null;
+    }
+    
     try {
       const response = await fetch(`${this.baseURL}/auth/user/`, {
         headers: this.getAuthHeaders(),
       });
       if (response.ok) {
         return response.json();
+      }
+      // If token is invalid, remove it
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
       }
       return null;
     } catch {

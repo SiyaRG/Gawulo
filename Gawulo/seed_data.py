@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Data seeding script for Gawulo project.
+Data seeding script for ReachHub project.
 Creates sample vendors, menu items, and other data for testing.
 """
 
@@ -20,9 +20,9 @@ from orders.models import Order, OrderItem, OrderStatusHistory
 
 
 def create_sample_data():
-    """Create sample data for the Gawulo system."""
+    """Create sample data for the ReachHub system."""
     
-    print("Creating sample data for Gawulo...")
+    print("Creating sample data for ReachHub...")
     
     # Create sample users
     print("Creating users...")

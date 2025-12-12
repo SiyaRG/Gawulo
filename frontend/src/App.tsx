@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider, useQueryClient } from 'react-query';
 
 // Import services
 import { storage } from './services/storage';
@@ -15,10 +14,10 @@ import RouterWrapper from './components/RouterWrapper';
 
 // Import theme and types
 import theme from './theme';
-import { AppState } from './types/index';
+import { AppState, User } from './types/index';
 
 // Import API hooks
-import { useCurrentUser, useIsAuthenticated } from './hooks/useApi';
+import { useCurrentUser } from './hooks/useApi';
 
 
 
@@ -63,8 +62,8 @@ function AppContent() {
     },
   });
 
-  // Check authentication status
-  const { data: isAuthenticated, isLoading: authLoading } = useIsAuthenticated();
+  // Check authentication status - single source of truth
+  const queryClient = useQueryClient();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 
   // Initialize app
@@ -84,15 +83,23 @@ function AppContent() {
   }, []);
 
   // Update app state when authentication changes
+  // Simple: if currentUser exists, user is authenticated
   useEffect(() => {
-    if (!authLoading && !userLoading) {
-      setAppState(prev => ({
-        ...prev,
-        isAuthenticated: isAuthenticated || false,
-        user: currentUser || null,
-      }));
-    }
-  }, [isAuthenticated, currentUser, authLoading, userLoading]);
+    const newUser = currentUser || null;
+    const newIsAuthenticated = newUser !== null;
+    
+    setAppState(prev => {
+      // Only update if something actually changed to avoid unnecessary re-renders
+      if (newIsAuthenticated !== prev.isAuthenticated || newUser !== prev.user) {
+        return {
+          ...prev,
+          isAuthenticated: newIsAuthenticated,
+          user: newUser,
+        };
+      }
+      return prev;
+    });
+  }, [currentUser]);
 
   // Network status monitoring
   useEffect(() => {
@@ -128,7 +135,25 @@ function AppContent() {
     };
   }, [appState.isOnline]);
 
-  if (isLoading || authLoading || userLoading) {
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('App initialization timeout - proceeding anyway');
+        setIsLoading(false);
+      }
+    }, 3000); // 3 second timeout for app initialization
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
+  // Simplified loading logic:
+  // Show loading only if app is initializing OR user query is loading on first load
+  const hasCachedUser = queryClient.getQueryData(['user', 'current']) !== undefined;
+  const isFirstLoad = !hasCachedUser;
+  const shouldShowLoading = isLoading || (isFirstLoad && userLoading);
+  
+  if (shouldShowLoading) {
     return <LoadingScreen />;
   }
 
@@ -139,30 +164,6 @@ function AppContent() {
           <Router>
             <RouterWrapper appState={appState} />
           </Router>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: '#4ade80',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
         </Box>
       </ThemeProvider>
   );

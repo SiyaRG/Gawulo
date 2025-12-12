@@ -1,5 +1,5 @@
 """
-Development settings for Gawulo project.
+Development settings for ReachHub project.
 """
 
 from .settings import *

@@ -1,5 +1,5 @@
 """
-Sync models for the Gawulo offline-first food ordering system.
+Sync models for the ReachHub Trust as a Service platform.
 
 Defines models for data synchronization, conflict resolution,
 and offline queue management.

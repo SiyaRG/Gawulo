@@ -1,8 +1,8 @@
 """
-Custom permissions for the Gawulo system.
+Custom permissions for the ReachHub system.
 
 Defines permissions for vendors, customers, and administrators
-in the offline-first food ordering system.
+in the Trust as a Service platform.
 """
 
 from django.contrib.auth.models import Permission
@@ -11,9 +11,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
-class GawuloUser(AbstractUser):
+class ReachHubUser(AbstractUser):
     """
-    Extended user model for Gawulo system.
+    Extended user model for ReachHub system.
     
     Supports different user types: vendor, customer, admin
     with appropriate permissions for offline-first operations.
@@ -33,12 +33,12 @@ class GawuloUser(AbstractUser):
     last_sync = models.DateTimeField(null=True, blank=True)
     
     class Meta:
-        verbose_name = 'Gawulo User'
-        verbose_name_plural = 'Gawulo Users'
+        verbose_name = 'ReachHub User'
+        verbose_name_plural = 'ReachHub Users'
 
 
 class VendorPermissions:
-    """Permissions specific to vendors in the Gawulo system."""
+    """Permissions specific to vendors in the ReachHub system."""
     
     @staticmethod
     def get_vendor_permissions():
@@ -78,7 +78,7 @@ class VendorPermissions:
 
 
 class CustomerPermissions:
-    """Permissions specific to customers in the Gawulo system."""
+    """Permissions specific to customers in the ReachHub system."""
     
     @staticmethod
     def get_customer_permissions():
@@ -193,9 +193,9 @@ class SyncPermissions:
         return user.user_type in ['admin', 'support']
 
 
-def create_gawulo_permissions():
+def create_reachhub_permissions():
     """
-    Create custom permissions for the Gawulo system.
+    Create custom permissions for the ReachHub system.
     
     This function should be called during migrations or setup.
     """
@@ -218,4 +218,4 @@ def create_gawulo_permissions():
         print("Created Administrators group")
     
     # Add permissions to groups (simplified - in practice, you'd create actual permissions)
-    print("Gawulo permissions setup completed")
+    print("ReachHub permissions setup completed")

@@ -1,6 +1,6 @@
-# Gawulo API Documentation
+# ReachHub API Documentation
 
-This document provides comprehensive information about all available API endpoints in the Gawulo system.
+This document provides comprehensive information about all available API endpoints in the ReachHub system.
 
 ## Base URL
 ```

@@ -1,6 +1,6 @@
-# Gawulo - Offline-First Food Ordering System
+# ReachHub - Trust as a Service Platform
 
-Gawulo is an innovative offline-first food ordering system designed specifically for South African townships. The platform empowers local vendors with technology that works even when internet connectivity is unreliable.
+ReachHub is a Trust as a Service (TaaS) platform designed to create verifiable and transparent local commerce. The platform empowers local vendors with technology that ensures trust and transparency in every transaction.
 
 ## Features
 
@@ -41,7 +41,7 @@ Gawulo is an innovative offline-first food ordering system designed specifically
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd Gawulo
+   cd ReachHub
    ```
 
 2. **Set up the backend**
@@ -55,7 +55,7 @@ Gawulo is an innovative offline-first food ordering system designed specifically
    pip install -r requirements.txt
    
    # Navigate to Django project
-   cd Gawulo
+   cd ReachHub
    
    # Run migrations
    python manage.py migrate
@@ -97,7 +97,7 @@ chmod +x start-dev.sh
 
 1. **Start Django backend**
    ```bash
-   cd Gawulo
+   cd ReachHub
    gven\Scripts\activate  # Windows
    python manage.py runserver
    ```
@@ -168,7 +168,7 @@ gawulo/
 
 1. **Running tests**
    ```bash
-   cd Gawulo
+   cd ReachHub
    python manage.py test
    ```
 

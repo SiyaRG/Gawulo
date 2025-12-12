@@ -1,5 +1,5 @@
 """
-Vendor models for the Gawulo offline-first food ordering system.
+Vendor models for the ReachHub Trust as a Service platform.
 
 Defines models for vendor profiles, menus, business information,
 and offline-capable operations.

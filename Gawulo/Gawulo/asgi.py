@@ -1,5 +1,5 @@
 """
-ASGI config for Gawulo project.
+ASGI config for ReachHub project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

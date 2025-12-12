@@ -1,47 +1,46 @@
 import { createTheme } from '@mui/material/styles';
 
-// Gawulo color palette
+// Trust as a Service (TaaS) brand color palette
 const colors = {
-  primaryAction: '#FF6B35',
-  primaryBrand: '#4F372D',
-  secondary: '#00798C',
-  secondaryYellow: '#FFD639',
-  neutralDark: '#2D323A',
-  neutralLight: '#FDFDFC'
+  primary: '#27AE60', // Vibrant Green
+  accent: '#E3AD4D', // Gold/Yellow-Orange
+  lightBg: '#FDF9F3', // Creamy Off-White
+  darkText: '#333333', // Dark Gray
+  white: '#FFFFFF', // Pure White
 };
 
 export const theme = createTheme({
   palette: {
     primary: {
-      main: colors.primaryBrand,
-      light: '#6B4F3F',
-      dark: '#2A1F1A',
-      contrastText: '#FFFFFF',
+      main: colors.primary, // Brand Primary Green #27AE60
+      light: '#4EC97A',
+      dark: '#1E7D47',
+      contrastText: colors.white,
     },
     secondary: {
-      main: colors.secondary,
-      light: '#1A9BA8',
-      dark: '#005A6B',
-      contrastText: '#FFFFFF',
+      main: colors.accent, // Brand Accent Gold #E3AD4D
+      light: '#F0C97A',
+      dark: '#C8952D',
+      contrastText: colors.darkText,
     },
     error: {
       main: '#D32F2F',
     },
     warning: {
-      main: colors.secondaryYellow,
+      main: colors.accent,
     },
     info: {
-      main: colors.secondary,
+      main: colors.primary,
     },
     success: {
-      main: '#2E7D32',
+      main: colors.primary,
     },
     background: {
-      default: colors.neutralLight,
-      paper: '#FFFFFF',
+      default: colors.lightBg,
+      paper: colors.white,
     },
     text: {
-      primary: colors.neutralDark,
+      primary: colors.darkText,
       secondary: '#666666',
     },
   },

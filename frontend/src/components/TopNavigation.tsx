@@ -57,10 +57,16 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
     setMobileMenuAnchor(null);
   };
 
-  const handleLogout = () => {
-    logout.mutate();
+  const handleLogout = async () => {
     handleMenuClose();
-    navigate('/');
+    try {
+      await logout.mutateAsync();
+      // Navigate after logout completes
+      navigate('/');
+    } catch (error) {
+      // Even if logout fails, navigate to home
+      navigate('/');
+    }
   };
 
   const handleNavigation = (path: string) => {
@@ -154,33 +160,27 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
 
   return (
     <AppBar 
-      position="fixed" 
+      position="sticky" 
       sx={{ 
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: theme.palette.primary.main,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        backgroundColor: '#FFFFFF',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       }}
     >
-      <Toolbar>
-        {/* Mobile Menu Button */}
-        {isMobile && onMenuToggle && (
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={onMenuToggle}
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
-
-        {/* Logo/Brand */}
+      <Toolbar sx={{ 
+        maxWidth: '1280px',
+        width: '100%',
+        mx: 'auto',
+        px: { xs: 2, sm: 3, md: 4 },
+        height: '64px',
+        justifyContent: 'space-between',
+      }}>
+        {/* Logo Left */}
         <Box 
           sx={{ 
             display: 'flex', 
-            alignItems: 'center', 
-            flexGrow: 1,
+            alignItems: 'center',
+            flexShrink: 0,
             cursor: 'pointer',
             '&:hover': {
               opacity: 0.8,
@@ -188,147 +188,166 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
           }}
           onClick={() => navigate('/')}
         >
-          <img 
-            src="/logo.svg" 
-            alt="Gawulo Logo" 
-            style={{ 
-              height: '32px', 
-              width: '32px',
-              filter: 'brightness(0) invert(1)', // Make logo white
-              marginRight: '8px',
-              display: 'block'
-            }} 
-          />
+          <Box sx={{
+            height: '40px',
+            width: '40px',
+            borderRadius: 1,
+            p: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mr: 1,
+          }}>
+            <img 
+              src="/logo.svg" 
+              alt="TaaS Logo Icon" 
+              style={{ 
+                height: '100%', 
+                width: '100%',
+                objectFit: 'contain',
+              }} 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://placehold.co/32x32/27AE60/FFFFFF?text=R';
+              }}
+            />
+          </Box>
           <Typography 
             variant="h6" 
             component="div" 
             sx={{ 
+              fontSize: '1.25rem',
               fontWeight: 700,
-              display: { xs: 'none', sm: 'block' } // Hide on mobile, show on tablet+
+              color: '#333333',
+              letterSpacing: '-0.025em',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            Gawulo
+            <Box component="span" sx={{ color: '#333333' }}>Reach</Box>
+            <Box component="span" sx={{ color: '#E3AD4D' }}>Hub</Box>
           </Typography>
         </Box>
 
-        {/* Online/Offline Status */}
-        <Chip
-          label={appState.isOnline ? 'Online' : 'Offline'}
-          color={appState.isOnline ? 'success' : 'error'}
-          size="small"
-          sx={{ 
-            mr: 2,
-            display: { xs: 'none', sm: 'flex' } // Hide on mobile
-          }}
-        />
-
-        {/* Development Cache Clear Button */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* Navigation Links (Hidden on small screen for simplicity) */}
+        <Box sx={{ 
+          display: { xs: 'none', sm: 'flex' },
+          ml: 6,
+          gap: 2,
+        }}>
           <Button
-            variant="outlined"
-            size="small"
-            onClick={handleClearCache}
-            sx={{ 
-              mr: 2, 
-              color: 'white', 
-              borderColor: 'white',
-              display: { xs: 'none', md: 'block' }, // Hide on mobile and tablet
+            onClick={() => navigate('/about')}
+            sx={{
+              color: '#333333',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
               '&:hover': {
-                borderColor: 'white',
-                backgroundColor: 'rgba(255,255,255,0.1)'
-              }
+                color: '#27AE60',
+                backgroundColor: 'transparent',
+              },
             }}
           >
-            🧹 Clear Cache
+            Why Trust?
           </Button>
-        )}
+          <Button
+            onClick={() => navigate('/services')}
+            sx={{
+              color: '#333333',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
+              '&:hover': {
+                color: '#27AE60',
+                backgroundColor: 'transparent',
+              },
+            }}
+          >
+            Services
+          </Button>
+          <Button
+            onClick={() => navigate('/contact')}
+            sx={{
+              color: '#333333',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
+              '&:hover': {
+                color: '#27AE60',
+                backgroundColor: 'transparent',
+              },
+            }}
+          >
+            Contact
+          </Button>
+        </Box>
 
-        {/* Desktop Navigation */}
-        {!isMobile && appState.isAuthenticated && (
-          <Box sx={{ 
-            display: { xs: 'none', md: 'flex' }, 
-            alignItems: 'center', 
-            gap: 1 
-          }}>
-            <Button 
-              color="inherit" 
-              onClick={() => navigate('/home')}
-              sx={{ textTransform: 'none' }}
-            >
-              Dashboard
-            </Button>
-            <Button 
-              color="inherit" 
-              onClick={() => navigate('/vendor')}
-              sx={{ textTransform: 'none' }}
-            >
-              Vendor
-            </Button>
-            <Button 
-              color="inherit" 
-              onClick={() => navigate('/customer')}
-              sx={{ textTransform: 'none' }}
-            >
-              Customer
-            </Button>
-          </Box>
-        )}
-
-        {/* Notifications */}
-        <IconButton
-          size="large"
-          aria-label="show notifications"
-          color="inherit"
-          sx={{ 
-            ml: 1,
-            display: { xs: 'none', sm: 'flex' } // Hide on mobile
-          }}
-        >
-          <Notifications />
-        </IconButton>
-
-        {/* User Menu */}
-        {appState.isAuthenticated ? (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
+        {/* CTA Button Right */}
+        {!appState.isAuthenticated ? (
+          <Button
+            variant="contained"
+            onClick={() => navigate('/login')}
+            sx={{
+              display: { xs: 'none', md: 'inline-flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: 2,
+              py: 0.75,
+              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              borderRadius: '9999px',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+              backgroundColor: '#27AE60',
+              color: '#FFFFFF',
+              '&:hover': {
+                backgroundColor: 'rgba(39, 174, 96, 0.9)',
+              },
+            }}
+          >
+            Get Started
+          </Button>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, color: '#333333' }}>
               {appState.user?.username || 'User'}
             </Typography>
             <IconButton
-              size="large"
+              size="small"
               edge="end"
               aria-label="account of current user"
               aria-controls={menuId}
               aria-haspopup="true"
               onClick={handleProfileMenuOpen}
-              color="inherit"
+              sx={{ color: '#333333' }}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: '#E3AD4D' }}>
                 {appState.user?.username?.charAt(0)?.toUpperCase() || 'U'}
               </Avatar>
             </IconButton>
           </Box>
-        ) : (
-          <Button 
-            color="inherit" 
-            onClick={() => navigate('/login')}
-            sx={{ textTransform: 'none' }}
-          >
-            Login
-          </Button>
         )}
 
         {/* Mobile Menu Button */}
-        {isMobile && appState.isAuthenticated && (
+        {isMobile && (
           <IconButton
-            size="large"
-            aria-label="show more"
-            aria-controls={mobileMenuId}
-            aria-haspopup="true"
-            onClick={handleMobileMenuOpen}
             color="inherit"
-            sx={{ ml: 1 }}
+            aria-label="menu"
+            onClick={appState.isAuthenticated ? handleMobileMenuOpen : onMenuToggle}
+            sx={{ 
+              color: '#333333',
+              ml: 1,
+            }}
           >
-            <AccountCircle />
+            <MenuIcon />
           </IconButton>
         )}
       </Toolbar>

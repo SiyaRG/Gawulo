@@ -1,4 +1,4 @@
-Write-Host "Checking Gawulo Development Environment Status..." -ForegroundColor Green
+Write-Host "Checking ReachHub Development Environment Status..." -ForegroundColor Green
 Write-Host ""
 
 # Check Django Backend

@@ -1,5 +1,5 @@
 """
-Tracking models for the Gawulo offline-first food ordering system.
+Tracking models for the ReachHub Trust as a Service platform.
 
 Defines models for real-time order tracking, location services,
 and delivery management with offline capabilities.

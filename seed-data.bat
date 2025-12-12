@@ -1,5 +1,5 @@
 @echo off
-echo Seeding Gawulo database with sample data...
+echo Seeding ReachHub database with sample data...
 echo.
 
 cd Gawulo

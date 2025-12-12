@@ -29,12 +29,21 @@ interface HomePageProps {
 const HomePage: React.FC<HomePageProps> = ({ appState }) => {
   const navigate = useNavigate();
 
+  // Brand colors
+  const BRAND_COLORS = {
+    primary: '#27AE60',
+    accent: '#E3AD4D',
+    lightBg: '#FDF9F3',
+    darkText: '#333333',
+    white: '#FFFFFF',
+  };
+
   const dashboardCards = [
     {
       title: 'Vendor Dashboard',
       description: 'Manage your menu, orders, and business',
       icon: <Restaurant sx={{ fontSize: 40 }} />,
-      color: '#FF6B35',
+      color: BRAND_COLORS.primary,
       path: '/vendor',
       action: 'Manage Business',
     },
@@ -42,7 +51,7 @@ const HomePage: React.FC<HomePageProps> = ({ appState }) => {
       title: 'Customer Dashboard',
       description: 'Browse vendors and place orders',
       icon: <ShoppingCart sx={{ fontSize: 40 }} />,
-      color: '#00798C',
+      color: BRAND_COLORS.accent,
       path: '/customer',
       action: 'Start Ordering',
     },
@@ -50,7 +59,7 @@ const HomePage: React.FC<HomePageProps> = ({ appState }) => {
       title: 'Profile',
       description: 'View and edit your profile information',
       icon: <Person sx={{ fontSize: 40 }} />,
-      color: '#4F372D',
+      color: BRAND_COLORS.primary,
       path: '/profile',
       action: 'View Profile',
     },
@@ -58,7 +67,7 @@ const HomePage: React.FC<HomePageProps> = ({ appState }) => {
       title: 'Settings',
       description: 'Configure your account preferences',
       icon: <Settings sx={{ fontSize: 40 }} />,
-      color: '#FFD639',
+      color: BRAND_COLORS.accent,
       path: '/settings',
       action: 'Configure',
     },
@@ -72,7 +81,7 @@ const HomePage: React.FC<HomePageProps> = ({ appState }) => {
           Welcome back, {appState.user?.username || 'User'}!
         </Typography>
         <Typography variant="h6" color="text.secondary" paragraph>
-          Your Gawulo Dashboard - Offline-first food ordering platform
+          Trust as a Service. Verifiable Certainty.
         </Typography>
         
         {/* Status Indicators */}

@@ -1,6 +1,6 @@
 # Frontend Integration with Django Backend
 
-This document provides comprehensive information about the React frontend integration with the Django backend for the Gawulo food ordering system.
+This document provides comprehensive information about the React frontend integration with the Django backend for the ReachHub Trust as a Service platform.
 
 ## 🚀 Overview
 
@@ -257,7 +257,7 @@ createReview.mutate({
 ### 1. Start Both Servers
 ```bash
 # Terminal 1 - Django Backend
-cd Gawulo
+cd ReachHub
 ..\gven\Scripts\activate
 python manage.py runserver 9033
 
@@ -383,4 +383,4 @@ The frontend is fully responsive and works on:
 
 ---
 
-This integration provides a complete, production-ready frontend for the Gawulo food ordering system with full CRUD capabilities, authentication, and offline support.
+This integration provides a complete, production-ready frontend for the ReachHub Trust as a Service platform with full CRUD capabilities, authentication, and offline support.

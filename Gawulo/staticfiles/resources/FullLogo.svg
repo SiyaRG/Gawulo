@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1200">
+  <!-- Logo Section -->
+  <g transform-origin="512 512">
+    <animateTransform attributeName="transform" type="scale" values="1;1.03;1;1.02;1" dur="0.8s" begin="0.6s" fill="freeze"/>
+    <path id="background" d="M0 0h1024v1024H0z" fill="#ffffff" stroke="#ffffff" stroke-width="2">
+    </path>
+    <path id="path1" d="M418.83 293.353q3.675-.01 7.35-.027c5.918-.02 11.836-.017 17.755-.002q7.224.015 14.447.007l2.09-.002 4.204-.005a12540 12540 0 0 1 39.273.029q16.797.031 33.594-.005a12126 12126 0 0 1 45.422-.015c4.803.005 9.606-.003 14.41-.014 6.479-.016 12.958-.005 19.438.024q3.55.01 7.1-.006c23.657-.101 42.33 4.75 59.985 21.46 9.831 10.41 18.21 26.266 18.233 40.786l.012 2.711-.003 2.952.01 3.157q.01 5.245.011 10.49l.015 7.515q.019 10.215.024 20.43.005 6.384.012 12.767.019 17.685.026 35.37v4.577l.002 4.596v2.303q.009 18.457.046 36.913.035 18.966.037 37.932-.001 10.643.025 21.284.024 10.014.01 20.029-.002 3.669.013 7.339c.013 3.348.007 6.696-.004 10.044l.025 2.911c-.069 9.527-2.396 18.27-7.017 26.597l-1.054 1.918c-9.068 16.014-23.452 27.99-41.277 33.148-5.987 1.437-11.661 1.721-17.802 1.701l-3.178.014c-3.496.013-6.991.011-10.487.01q-3.771.008-7.542.02-9.163.023-18.326.023-7.454.002-14.906.012-21.162.026-42.324.025h-4.605c-12.32-.001-24.64.018-36.96.046q-19.005.043-38.01.04c-7.105 0-14.21.005-21.315.027q-10.025.029-20.051.005-3.672-.003-7.343.015c-23.55.109-23.55.109-33.195-4.504l-2.708-1.177c-16.418-7.29-28.033-21.804-34.647-38.178-2.891-8.401-3.794-16.036-3.792-24.87l-.011-3.115q-.015-5.163-.019-10.328l-.02-7.407c-.02-7.409-.03-14.818-.039-22.227l-.015-10.485a41572 41572 0 0 1-.044-43.935l-.002-2.27c-.008-12.124-.033-24.248-.066-36.372q-.049-18.702-.054-37.403a6241 6241 0 0 0-.036-20.976c-.025-6.583-.028-13.167-.018-19.75q0-3.612-.02-7.224c-.126-23.382 3.368-41.578 20.053-58.951 3.29-3.148 6.635-5.836 10.438-8.332l2.086-1.516c15.226-10.289 33.09-10.214 50.745-10.131" fill="#000000" stroke="#ffffff" stroke-width="2">
+          <animate attributeName="fill" from="#000000" to="#3cb057" dur="1s" begin="1s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1s" fill="3cb057"/>
+    </path>
+    <path id="path2" d="m504.937 376.839 2.164-.015q3.558-.021 7.114-.027l4.957-.017q5.209-.015 10.418-.02c4.425-.006 8.85-.03 13.274-.058 3.419-.019 6.838-.024 10.257-.026q2.444-.004 4.887-.024c9.064-.068 17.347.266 25.992 3.348l3.348 1.14c16.98 6.94 29.061 18.79 36.902 35.36 3.892 9.617 5.28 18.51 5.187 28.875l-.027 3.624c-.165 8.391-.758 15.346-4.41 23.001l-.813 1.792c-8.021 17.454-20.546 29.43-38.5 36.208-5.272 1.73-10.152 2.714-15.687 3a187 187 0 0 0 16.694 18.728 158 158 0 0 1 9.482 10.163c2.306 2.667 4.687 5.264 7.074 7.859l1.413 1.538Q606.83 553.645 609 556a3041 3041 0 0 1 13.21 14.426l1.915 2.136 1.633 1.817C627 576 627 576 628 579c-6.707.178-13.414.3-20.123.385q-3.42.052-6.841.143c-3.285.085-6.567.125-9.852.156l-3.073.11c-5.323.002-8.324-.373-12.191-4.207A100 100 0 0 1 573 572l-1.898-2.082-1.477-1.73A534 534 0 0 0 561.5 559a829 829 0 0 1-9.688-10.938A718 718 0 0 0 545.5 541a902 902 0 0 1-7.813-8.75l-1.675-1.902a294 294 0 0 1-4.867-5.852l-1.568-1.897a270 270 0 0 1-3.05-3.764c-3.506-4.217-6.419-5.897-11.527-7.835-4.725-5.098-5.347-8.44-5.285-15.234.491-4.765 2.83-7.36 6.16-10.579 4.828-2.698 10.547-2.33 15.945-2.363l4.563-.072c2.363-.035 4.725-.064 7.088-.078 13.335-.09 26.095-1.38 36.529-10.674 7.368-8.44 10.797-18.672 10.375-29.797-1.129-9.642-5.098-16.802-12.375-23.203-9.236-6.593-18.482-7.29-29.546-7.305q-3.147-.908-6.294-.04a3476 3476 0 0 0-17.879-.111q-5.49-.025-10.978-.085a502 502 0 0 0-4.166-.018c-1.94 0-3.881-.02-5.821-.04l-3.339-.016c-4.062-.525-6.717-2.094-9.559-5.006-3.978-5.872-4.477-11.417-3.418-18.379 3.9-8.09 9.326-11.116 17.937-11.161" fill="#000000" stroke="#ffffff" stroke-width="2">
+      <animate attributeName="fill" from="#000000" to="#ffffff" dur="1s" begin="1s" fill="freeze"/>
+      <animate attributeName="stroke" from="#ffffff" to="#ffffff" dur="1s" begin="1s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1s" fill="freeze"/>
+    </path>
+    <circle cx="455" cy="396.8" r="17" fill="#ffffff" stroke="#ffffff" stroke-width="2">
+      <animate attributeName="fill" from="transparent" to="#f6f9f7" dur="1s" begin="1.5s" fill="freeze"/>
+      <animate attributeName="stroke" from="#ffffff" to="transparent" dur="2s" begin="1.5s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1.5s" fill="freeze"/>
+    </circle>
+    <rect x="430" y="434.9" width="45" height="34" rx="17" ry="17" fill="none" stroke="#ffffff" stroke-width="2">
+      <animate attributeName="fill" from="#000000" to="#ffffff" dur="1s" begin="1.6s" fill="freeze"/>
+      <animate attributeName="stroke" from="#ffffff" to="transparent" dur="2s" begin="1.6s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1.6s" fill="freeze"/>
+    </rect>
+    <rect x="410" y="483" width="90" height="34" rx="18" ry="18" fill="none" stroke="#ffffff" stroke-width="2">
+      <animate attributeName="fill" from="#000000" to="#ffffff" dur="1s" begin="1.7s" fill="freeze"/>
+      <animate attributeName="stroke" from="#ffffff" to="transparent" dur="1s" begin="1.7s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1.7s" fill="freeze"/>
+    </rect>
+    <circle cx="457" cy="561" r="20" fill="none" stroke="#ffffff" stroke-width="2">
+      <animate attributeName="fill" from="#000000" to="#ffffff" dur="1s" begin="1.8s" fill="freeze"/>
+      <animate attributeName="stroke" from="#000000" to="#ffffff" dur="1s" begin="1.8s" fill="freeze"/>
+      <animate attributeName="stroke-width" from="2" to="0" dur="1s" begin="1.8s" fill="freeze"/>
+    </circle>
+  </g>
+  
+  <!-- Name Section - Centered below the logo -->
+  <g transform="translate(273.5, 850)">
+    <text x="0" y="0" font-family="Montserrat, sans-serif" font-size="100" font-weight="bold" fill="transparent" text-anchor="start">
+      <animate attributeName="fill" from="transparent" to="#000000" dur="0.2s" begin="2s" fill="freeze"/>
+      <animate attributeName="fill" from="#000000" to="#3cb057" dur="0.3s" begin="2.1s" fill="freeze"/>
+      Reach
+    </text>
+    <text x="300" y="0" font-family="Montserrat, sans-serif" font-size="100" font-weight="bold" fill="transparent" text-anchor="start">
+      <animate attributeName="fill" from="transparent" to="#000000" dur="0.2s" begin="2.1s" fill="freeze"/>
+      <animate attributeName="fill" from="#000000" to="#E3AD4D" dur="0.3s" begin="2.2s" fill="freeze"/>
+      Hub
+    </text>
+  </g>
+  
+  <!-- Slogan Section - Centered below the name -->
+  <g transform="translate(512, 925)">
+    <text x="0" y="0" font-family="Montserrat, sans-serif" font-size="50" font-weight="" fill="transparent" text-anchor="middle">
+      <animate attributeName="fill" from="transparent" to="#333333" dur="0.3s" begin="2.5s" fill="freeze"/>
+      The <tspan fill="transparent">
+        <animate attributeName="fill" from="transparent" to="#333333" dur="0.3s" begin="2.5s" fill="freeze"/>
+        <animate attributeName="fill" from="#333333" to="#E3AD4D" dur="0.4s" begin="2.8s" fill="freeze"/>
+        Trust
+      </tspan> you Need to <tspan fill="transparent">
+        <animate attributeName="fill" from="transparent" to="#333333" dur="0.3s" begin="2.5s" fill="freeze"/>
+        <animate attributeName="fill" from="#333333" to="#3cb057" dur="0.4s" begin="2.8s" fill="freeze"/>
+        Grow
+      </tspan>
+    </text>
+  </g>
+</svg>
+

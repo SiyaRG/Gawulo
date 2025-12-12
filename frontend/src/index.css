@@ -5,22 +5,25 @@
 /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* Custom CSS variables */
+/* Custom CSS variables - Trust as a Service brand colors */
 :root {
-  --primary-color: #ed7516;
-  --primary-light: #f1943d;
-  --primary-dark: #b8440d;
-  --secondary-color: #0ea5e9;
-  --secondary-light: #38bdf8;
-  --secondary-dark: #0369a1;
-  --success-color: #22c55e;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --background-color: #f8fafc;
-  --surface-color: #ffffff;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
+  --brand-primary: #27AE60; /* Vibrant Green */
+  --brand-accent: #E3AD4D; /* Gold/Yellow-Orange */
+  --brand-light-bg: #FDF9F3; /* Creamy Off-White */
+  --brand-dark-text: #333333; /* Dark Gray */
+  --brand-white: #FFFFFF; /* Pure White */
+  
+  /* Legacy support - map to brand colors */
+  --primary-color: var(--brand-primary);
+  --primary-light: #4EC97A;
+  --primary-dark: #1E7D47;
+  --secondary-color: var(--brand-accent);
+  --background-color: var(--brand-light-bg);
+  --surface-color: var(--brand-white);
+  --text-primary: var(--brand-dark-text);
+  --text-secondary: #666666;
   --border-color: #e5e7eb;
+  --error-color: #D32F2F;
 }
 
 /* Base styles */
@@ -35,8 +38,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--background-color);
-  color: var(--text-primary);
+  background-color: var(--brand-light-bg);
+  color: var(--brand-dark-text);
   line-height: 1.6;
 }
 
@@ -147,7 +150,7 @@ a:hover {
 
 /* Utility classes */
 .text-gradient {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -1,6 +1,6 @@
-# Gawulo Project Setup Guide
+# ReachHub Project Setup Guide
 
-This guide will help you set up the Gawulo offline-first food ordering system for development and production.
+This guide will help you set up the ReachHub Trust as a Service platform for development and production.
 
 ## Table of Contents
 
@@ -33,9 +33,9 @@ This guide will help you set up the Gawulo offline-first food ordering system fo
 ## Project Structure
 
 ```
-gawulo/
+reachhub/
 ├── backend/                 # Django backend
-│   ├── gawulo/             # Main Django project
+│   ├── reachhub/             # Main Django project
 │   ├── apps/               # Django applications
 │   │   ├── vendors/        # Vendor management
 │   │   ├── orders/         # Order processing
@@ -85,9 +85,9 @@ pip install -r requirements.txt
 Create a MySQL database for the project:
 
 ```sql
-CREATE DATABASE gawulo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'gawulo_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON gawulo_db.* TO 'gawulo_user'@'localhost';
+CREATE DATABASE reachhub_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'reachhub_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON reachhub_db.* TO 'reachhub_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -102,7 +102,7 @@ SECRET_KEY=your-secret-key-here
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database
-DATABASE_URL=mysql://gawulo_user:your_password@localhost:3306/gawulo_db
+DATABASE_URL=mysql://reachhub_user:your_password@localhost:3306/reachhub_db
 
 # Redis (optional for development)
 REDIS_URL=redis://localhost:6379/0
@@ -337,8 +337,8 @@ docker-compose -f docker/docker-compose.yml down
 2. **Application Setup**:
    ```bash
    # Clone repository
-   git clone https://github.com/your-repo/gawulo.git
-   cd gawulo/backend
+   git clone https://github.com/your-repo/reachhub.git
+   cd reachhub/backend
 
    # Setup virtual environment
    python3.11 -m venv venv
@@ -360,20 +360,20 @@ docker-compose -f docker/docker-compose.yml down
    pip install gunicorn
 
    # Create systemd service
-   sudo nano /etc/systemd/system/gawulo.service
+   sudo nano /etc/systemd/system/reachhub.service
    ```
 
    ```ini
    [Unit]
-   Description=Gawulo Django Application
+   Description=ReachHub Django Application
    After=network.target
 
    [Service]
    User=www-data
    Group=www-data
-   WorkingDirectory=/path/to/gawulo/backend
-   Environment="PATH=/path/to/gawulo/backend/venv/bin"
-   ExecStart=/path/to/gawulo/backend/venv/bin/gunicorn --workers 4 --bind unix:/run/gawulo.sock gawulo.wsgi:application
+   WorkingDirectory=/path/to/reachhub/backend
+   Environment="PATH=/path/to/reachhub/backend/venv/bin"
+   ExecStart=/path/to/reachhub/backend/venv/bin/gunicorn --workers 4 --bind unix:/run/reachhub.sock Gawulo.wsgi:application
 
    [Install]
    WantedBy=multi-user.target
@@ -394,22 +394,22 @@ docker-compose -f docker/docker-compose.yml down
        server_name your-domain.com;
 
        location / {
-           root /path/to/gawulo/frontend/build;
+           root /path/to/reachhub/frontend/build;
            try_files $uri $uri/ /index.html;
        }
 
        location /api/ {
-           proxy_pass http://unix:/run/gawulo.sock;
+           proxy_pass http://unix:/run/reachhub.sock;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
        }
 
        location /static/ {
-           alias /path/to/gawulo/backend/staticfiles/;
+           alias /path/to/reachhub/backend/staticfiles/;
        }
 
        location /media/ {
-           alias /path/to/gawulo/backend/media/;
+           alias /path/to/reachhub/backend/media/;
        }
    }
    ```
@@ -487,7 +487,7 @@ npm run test:e2e
    sudo systemctl status mysql
 
    # Test connection
-   mysql -u gawulo_user -p gawulo_db
+   mysql -u reachhub_user -p reachhub_db
    ```
 
 2. **Redis Connection**:

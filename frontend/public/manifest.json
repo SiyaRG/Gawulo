@@ -1,7 +1,7 @@
 {
-  "short_name": "Gawulo",
-  "name": "Gawulo - Township Food Ordering",
-  "description": "Offline-first food ordering system for South African townships",
+  "short_name": "ReachHub",
+  "name": "ReachHub - Trust as a Service Platform",
+  "description": "Trust as a Service platform for verifiable and transparent local commerce",
   "icons": [
     {
       "src": "favicon.ico",
@@ -96,7 +96,7 @@
   "handle_links": "preferred",
   "protocol_handlers": [
     {
-      "protocol": "web+gawulo",
+      "protocol": "web+reachhub",
       "url": "/?action=%s"
     }
   ]

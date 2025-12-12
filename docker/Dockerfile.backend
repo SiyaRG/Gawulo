@@ -28,9 +28,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' gawulo
-RUN chown -R gawulo:gawulo /app
-USER gawulo
+RUN adduser --disabled-password --gecos '' reachhub
+RUN chown -R reachhub:reachhub /app
+USER reachhub
 
 # Create necessary directories
 RUN mkdir -p /app/staticfiles /app/media /app/logs

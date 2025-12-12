@@ -1,8 +1,8 @@
-// Service Worker for Gawulo - Offline-first food ordering system
+// Service Worker for ReachHub - Trust as a Service platform
 
-const CACHE_NAME = 'gawulo-v1';
-const STATIC_CACHE = 'gawulo-static-v1';
-const DYNAMIC_CACHE = 'gawulo-dynamic-v1';
+const CACHE_NAME = 'reachhub-v1';
+const STATIC_CACHE = 'reachhub-static-v1';
+const DYNAMIC_CACHE = 'reachhub-dynamic-v1';
 
 // Files to cache immediately
 const STATIC_FILES = [
@@ -242,7 +242,7 @@ self.addEventListener('push', (event) => {
   console.log('Push notification received:', event);
   
   const options = {
-    body: event.data ? event.data.text() : 'New update from Gawulo',
+    body: event.data ? event.data.text() : 'New update from ReachHub',
     icon: '/logo192.png',
     badge: '/logo192.png',
     vibrate: [100, 50, 100],
@@ -265,7 +265,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification('Gawulo', options)
+    self.registration.showNotification('ReachHub', options)
   );
 });
 
@@ -356,4 +356,4 @@ async function syncContent() {
   }
 }
 
-console.log('Gawulo Service Worker loaded');
+console.log('ReachHub Service Worker loaded');

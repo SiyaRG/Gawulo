@@ -39,7 +39,7 @@ waitress==3.0.2
 whitenoise==6.9.0
 xlrd==2.0.1
 
-# Additional dependencies for Gawulo offline-first system
+# Additional dependencies for ReachHub Trust as a Service platform
 django-cacheops==7.2
 django-redis==5.4.0
 redis==5.0.1

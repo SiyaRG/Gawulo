@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Starting Gawulo Development Environment..."
+echo "Starting ReachHub Development Environment..."
 echo ""
 
 # Start Django Backend Server

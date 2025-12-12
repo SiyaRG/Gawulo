@@ -32,11 +32,10 @@ const Layout: React.FC<LayoutProps> = ({ children, appState }) => {
           flexGrow: 1, 
           pt: 8, // Account for fixed AppBar
           minHeight: 'calc(100vh - 64px)', // Subtract AppBar height
+          backgroundColor: '#FDF9F3', // Brand light background
         }}
       >
-        <Container maxWidth="lg" sx={{ py: 3 }}>
-          {children}
-        </Container>
+        {children}
       </Box>
 
       {/* Mobile Drawer */}

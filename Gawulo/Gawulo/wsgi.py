@@ -1,5 +1,5 @@
 """
-WSGI config for Gawulo project.
+WSGI config for ReachHub project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

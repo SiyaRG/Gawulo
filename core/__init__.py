@@ -1,1 +1,1 @@
-# Core utilities for Gawulo offline-first food ordering system
+# Core utilities for ReachHub Trust as a Service platform

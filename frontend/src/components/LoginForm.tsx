@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -7,31 +7,61 @@ import {
   TextField,
   Button,
   Typography,
-  Alert,
   CircularProgress,
-  Divider,
-  Grid,
+  Container,
 } from '@mui/material';
+import {
+  Lock,
+  Email as EmailIcon,
+} from '@mui/icons-material';
 import { useLogin } from '../hooks/useApi';
+import AlertMessage from './AlertMessage';
 
 interface LoginFormProps {
   onSuccess?: () => void;
 }
+
+// Trust as a Service brand colors
+const BRAND_COLORS = {
+  primary: '#27AE60', // Vibrant Green
+  accent: '#E3AD4D', // Gold/Yellow-Orange
+  lightBg: '#FDF9F3', // Creamy Off-White
+  darkText: '#333333', // Dark Gray
+  white: '#FFFFFF', // Pure White
+};
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const login = useLogin();
   const navigate = useNavigate();
 
+  // Capture error state from mutation and persist it locally
+  useEffect(() => {
+    if (login.error) {
+      const message = login.error instanceof Error
+        ? login.error.message
+        : 'Invalid credentials. Please try again.';
+      setErrorMessage(message);
+    } else if (login.isSuccess) {
+      // Clear error on successful login
+      setErrorMessage(null);
+    }
+  }, [login.error, login.isSuccess]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Clear previous error when starting new login attempt
+    setErrorMessage(null);
     login.mutate(formData, {
       onSuccess: (data) => {
-        // Redirect based on user type
+        // Clear error on success
+        setErrorMessage(null);
+        // Redirect immediately - React Query updates synchronously
         const username = data.user.username;
         if (username === 'admin') {
           navigate('/home'); // Admin dashboard
@@ -54,111 +84,176 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
   return (
     <Box 
-      display="flex" 
-      justifyContent="center" 
-      alignItems="center" 
-      minHeight="100vh"
-      sx={{ 
-        px: { xs: 2, sm: 0 }, // Add horizontal padding on mobile
-        py: { xs: 2, sm: 0 }  // Add vertical padding on mobile
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: BRAND_COLORS.lightBg,
+        py: { xs: 4, sm: 0 },
+        px: { xs: 2, sm: 0 },
       }}
     >
-      <Card sx={{ 
-        maxWidth: 400, 
-        width: '100%',
-        mx: { xs: 1, sm: 0 } // Add horizontal margin on mobile
-      }}>
-        <CardContent sx={{ 
-          p: { xs: 3, sm: 4 } // Reduce padding on mobile
+      <Container maxWidth="sm">
+        <Card sx={{ 
+          maxWidth: 480,
+          width: '100%',
+          mx: 'auto',
+          borderRadius: 3,
+          boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.15)',
+          borderTop: `4px solid ${BRAND_COLORS.primary}`,
+          backgroundColor: BRAND_COLORS.white,
         }}>
-          <Typography variant="h4" align="center" gutterBottom>
-            Login to Gawulo
-          </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            Access your vendor or customer dashboard
-          </Typography>
+          <CardContent sx={{ 
+            p: { xs: 4, sm: 5 },
+          }}>
+            {/* Logo/Icon Section */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              mb: 3 
+            }}>
+              <Box sx={{
+                backgroundColor: BRAND_COLORS.primary,
+                borderRadius: 2,
+                p: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 40px -10px rgba(39, 174, 96, 0.5)',
+              }}>
+                <Lock sx={{ fontSize: 40, color: BRAND_COLORS.white }} />
+              </Box>
+            </Box>
 
-          {login.error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {login.error.message}
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              margin="normal"
-              required
-              disabled={login.isLoading}
-            />
-            <TextField
-              fullWidth
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              margin="normal"
-              required
-              disabled={login.isLoading}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={login.isLoading}
-              sx={{ mt: 3, mb: 2 }}
+            {/* Header */}
+            <Typography 
+              variant="h3" 
+              align="center" 
+              gutterBottom
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '1.75rem', sm: '2rem' },
+                color: BRAND_COLORS.darkText,
+                mb: 1,
+              }}
             >
-              {login.isLoading ? (
-                <CircularProgress size={24} />
-              ) : (
-                'Login'
-              )}
-            </Button>
-          </form>
-
-          <Divider sx={{ my: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Sample Credentials
+              Welcome Back
             </Typography>
-          </Divider>
+            <Typography 
+              variant="body1" 
+              align="center" 
+              sx={{ 
+                mb: 4,
+                color: '#666666',
+                fontSize: '1rem',
+              }}
+            >
+              Trust as a Service. Verifiable Certainty.
+            </Typography>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Admin User:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Username: admin<br />
-                Password: admin123
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Customer:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Username: customer1<br />
-                Password: password123
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Vendor:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Username: street_food_vendor<br />
-                Password: vendor123
-              </Typography>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+            {/* Error Alert */}
+            <AlertMessage
+              open={!!errorMessage}
+              message={errorMessage || 'Invalid credentials. Please try again.'}
+              severity="error"
+              duration={5000}
+              onClose={() => setErrorMessage(null)}
+            />
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit}>
+              <TextField
+                fullWidth
+                label="Username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                margin="normal"
+                required
+                disabled={login.isLoading}
+                autoComplete="username"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                      borderColor: BRAND_COLORS.primary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: BRAND_COLORS.primary,
+                    },
+                  },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                margin="normal"
+                required
+                disabled={login.isLoading}
+                autoComplete="current-password"
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                      borderColor: BRAND_COLORS.primary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: BRAND_COLORS.primary,
+                    },
+                  },
+                }}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={login.isLoading}
+                startIcon={login.isLoading ? <CircularProgress size={20} color="inherit" /> : <Lock />}
+                sx={{ 
+                  mt: 2,
+                  mb: 2,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  backgroundColor: BRAND_COLORS.primary,
+                  borderRadius: '9999px',
+                  boxShadow: '0 0 40px -10px rgba(39, 174, 96, 0.5)',
+                  '&:hover': {
+                    backgroundColor: '#1E7D47',
+                    transform: 'scale(1.02)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:disabled': {
+                    backgroundColor: BRAND_COLORS.primary,
+                    opacity: 0.7,
+                  },
+                }}
+              >
+                {login.isLoading ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </form>
+
+            {/* Footer Text */}
+            <Typography 
+              variant="body2" 
+              align="center" 
+              sx={{ 
+                mt: 3,
+                color: '#666666',
+                fontSize: '0.875rem',
+              }}
+            >
+              Secure login powered by Trust as a Service
+            </Typography>
+          </CardContent>
+        </Card>
+      </Container>
     </Box>
   );
 };

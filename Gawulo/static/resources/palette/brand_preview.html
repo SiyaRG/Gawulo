@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Trust Landing Page Preview</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom gradient for hero section */
+        .hero-gradient {
+            background: linear-gradient(180deg, #FDF9F3 0%, #FFFFFF 100%);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Your defined palette
+                        'brand-primary': '#27AE60', // Vibrant Green
+                        'brand-accent': '#E3AD4D',  // Gold/Yellow-Orange
+                        'brand-light-bg': '#FDF9F3', // Creamy Off-White
+                        'brand-dark-text': '#333333', // Dark Gray
+                        'brand-white': '#FFFFFF', // Pure White
+                    },
+                    boxShadow: {
+                        'green-glow': '0 0 40px -10px rgba(39, 174, 96, 0.5)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-light-bg min-h-screen">
+
+    <!-- Navigation Header -->
+    <nav class="sticky top-0 z-10 bg-brand-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo Left -->
+                <div class="flex-shrink-0 flex items-center">
+                    <div class="h-10 w-10 rounded-md p-1 flex items-center justify-center mr-2">
+                        <img 
+                            src="R_only.svg" 
+                            alt="TaaS Logo Icon" 
+                            class="h-full w-full object-contain"
+                            onerror="this.onerror=null; this.src='https://placehold.co/32x32/27AE60/FFFFFF?text=R';"
+                        >
+                    </div>
+                    <span class="text-xl font-bold text-brand-dark-text tracking-tight">Reach</span>
+                    <span class="text-xl font-bold text-brand-accent tracking-tight">Hub</span>
+                </div>
+                <!-- Navigation Links (Hidden on small screen for simplicity) -->
+                <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                    <a href="#about" class="text-brand-dark-text hover:text-brand-primary px-3 py-2 rounded-md text-sm font-medium transition duration-150">Why Trust?</a>
+                    <a href="#features" class="text-brand-dark-text hover:text-brand-primary px-3 py-2 rounded-md text-sm font-medium transition duration-150">Services</a>
+                    <a href="#contact" class="text-brand-dark-text hover:text-brand-primary px-3 py-2 rounded-md text-sm font-medium transition duration-150">Contact</a>
+                </div>
+                <!-- CTA Button Right -->
+                <a href="#" class="hidden md:inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-brand-white bg-brand-primary hover:bg-brand-primary/90 transition duration-300">
+                    Get Started
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section: Focused on Vision & Certainty -->
+    <main class="hero-gradient">
+        <div class="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">
+            
+            <h1 class="text-5xl sm:text-6xl font-extrabold text-brand-dark-text tracking-tighter mb-4 leading-tight">
+                Trust as a Service. <span class="text-brand-primary block sm:inline">Verifiable Certainty.</span>
+            </h1>
+            
+            <!-- Vision as Subtitle -->
+            <p class="mt-3 max-w-2xl mx-auto text-xl text-gray-600 sm:mt-5 sm:text-2xl sm:max-w-3xl">
+                To be the undisputed global standard for digital trust, empowering a world where every transaction is inherently secure and transparent.
+            </p>
+
+            <!-- Call to Action -->
+            <div class="mt-8 flex justify-center space-x-4">
+                <button class="px-10 py-4 bg-brand-primary text-brand-white font-semibold text-lg rounded-full shadow-green-glow hover:bg-brand-primary/90 transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-primary/50">
+                    Eliminate Uncertainty Now
+                </button>
+                <button class="px-10 py-4 bg-transparent border-2 border-brand-accent text-brand-dark-text font-semibold text-lg rounded-full shadow-lg hover:bg-brand-accent/20 transition duration-300">
+                    Learn How
+                </button>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Key Selling Points/Mission Section -->
+    <section id="features" class="bg-brand-white py-16 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-extrabold text-brand-dark-text text-center mb-12">The Foundational Digital Infrastructure</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Feature 1: Secure -->
+                <div class="p-6 bg-brand-light-bg rounded-xl shadow-lg text-center border-t-4 border-brand-primary">
+                    <div class="text-brand-primary mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-brand-dark-text mb-2">Inherently Secure</h3>
+                    <p class="text-gray-600">Built-in protections and verified identity layers ensure every transaction is protected from end to end.</p>
+                </div>
+
+                <!-- Feature 2: Transparent -->
+                <div class="p-6 bg-brand-light-bg rounded-xl shadow-lg text-center border-t-4 border-brand-accent">
+                    <div class="text-brand-accent mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-brand-dark-text mb-2">Completely Transparent</h3>
+                    <p class="text-gray-600">All participants have a single, truthful view of the data, eliminating disputes and ensuring clarity.</p>
+                </div>
+
+                <!-- Feature 3: Trustworthy -->
+                <div class="p-6 bg-brand-light-bg rounded-xl shadow-lg text-center border-t-4 border-brand-primary">
+                    <div class="text-brand-primary mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-brand-dark-text mb-2">Unwavering Trust</h3>
+                    <p class="text-gray-600">Our foundation operates on verified, immutable certainty, removing economic risk for local businesses and consumers.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission statement as testimonial/proof -->
+    <section class="py-16 bg-brand-light-bg px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-xl font-semibold text-brand-accent mb-4">Our Commitment</h2>
+            <blockquote class="text-3xl sm:text-4xl font-light text-brand-dark-text italic leading-snug">
+                &ldquo;To build and operate the foundational, verified digital infrastructure—"Trust as a Service" (TaaS)—that eliminates economic uncertainty, enabling transparent and trustworthy transactions for local businesses and consumers.&rdquo;
+            </blockquote>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact" class="bg-brand-dark-text text-brand-white py-10 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto text-center text-sm">
+            <p>&copy; 2025 Trust as a Service (TaaS). All rights reserved.</p>
+            <div class="mt-2 space-x-4">
+                <a href="#" class="text-gray-400 hover:text-brand-primary transition">Privacy Policy</a>
+                <a href="#" class="text-gray-400 hover:text-brand-primary transition">Terms of Use</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
