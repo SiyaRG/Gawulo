@@ -10,6 +10,7 @@ import {
   MenuItem,
   Avatar,
   Chip,
+  Divider,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -106,6 +107,19 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
+      <MenuItem onClick={() => handleNavigation('/home')}>
+        <Dashboard sx={{ mr: 1 }} />
+        Dashboard
+      </MenuItem>
+      <MenuItem onClick={() => handleNavigation('/vendor')}>
+        <Dashboard sx={{ mr: 1 }} />
+        Vendor Dashboard
+      </MenuItem>
+      <MenuItem onClick={() => handleNavigation('/customer')}>
+        <ShoppingCart sx={{ mr: 1 }} />
+        Customer Dashboard
+      </MenuItem>
+      <Divider />
       <MenuItem onClick={() => handleNavigation('/profile')}>
         <Person sx={{ mr: 1 }} />
         Profile
@@ -114,6 +128,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
         <Settings sx={{ mr: 1 }} />
         Settings
       </MenuItem>
+      <Divider />
       <MenuItem onClick={handleLogout}>
         <Logout sx={{ mr: 1 }} />
         Logout
@@ -241,67 +256,69 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
           </Typography>
         </Box>
 
-        {/* Navigation Links (Hidden on small screen for simplicity) */}
-        <Box sx={{ 
-          display: { xs: 'none', sm: 'flex' },
-          ml: 6,
-          gap: 2,
-        }}>
-          <Button
-            onClick={() => navigate('/about')}
-            sx={{
-              color: '#333333',
-              textTransform: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              '&:hover': {
-                color: '#27AE60',
-                backgroundColor: 'transparent',
-              },
-            }}
-          >
-            Why Trust?
-          </Button>
-          <Button
-            onClick={() => navigate('/services')}
-            sx={{
-              color: '#333333',
-              textTransform: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              '&:hover': {
-                color: '#27AE60',
-                backgroundColor: 'transparent',
-              },
-            }}
-          >
-            Services
-          </Button>
-          <Button
-            onClick={() => navigate('/contact')}
-            sx={{
-              color: '#333333',
-              textTransform: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              '&:hover': {
-                color: '#27AE60',
-                backgroundColor: 'transparent',
-              },
-            }}
-          >
-            Contact
-          </Button>
-        </Box>
+        {/* Navigation Links (Hidden on small screen and when authenticated) */}
+        {!appState.isAuthenticated && (
+          <Box sx={{ 
+            display: { xs: 'none', sm: 'flex' },
+            ml: 6,
+            gap: 2,
+          }}>
+            <Button
+              onClick={() => navigate('/about')}
+              sx={{
+                color: '#333333',
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                '&:hover': {
+                  color: '#27AE60',
+                  backgroundColor: 'transparent',
+                },
+              }}
+            >
+              Why Trust?
+            </Button>
+            <Button
+              onClick={() => navigate('/services')}
+              sx={{
+                color: '#333333',
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                '&:hover': {
+                  color: '#27AE60',
+                  backgroundColor: 'transparent',
+                },
+              }}
+            >
+              Services
+            </Button>
+            <Button
+              onClick={() => navigate('/contact')}
+              sx={{
+                color: '#333333',
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                '&:hover': {
+                  color: '#27AE60',
+                  backgroundColor: 'transparent',
+                },
+              }}
+            >
+              Contact
+            </Button>
+          </Box>
+        )}
 
         {/* CTA Buttons Right */}
         {!appState.isAuthenticated ? (
@@ -354,8 +371,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
           </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, color: '#333333' }}>
-              {appState.user?.username || 'User'}
+            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, color: '#333333', fontSize: '0.875rem' }}>
+              {appState.user?.display_name || appState.user?.first_name || 'User'}
             </Typography>
             <IconButton
               size="small"
@@ -366,8 +383,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
               onClick={handleProfileMenuOpen}
               sx={{ color: '#333333' }}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: '#E3AD4D' }}>
-                {appState.user?.username?.charAt(0)?.toUpperCase() || 'U'}
+              <Avatar 
+                src={appState.user?.profile_picture || undefined}
+                sx={{ width: 32, height: 32, bgcolor: '#E3AD4D' }}
+              >
+                {(appState.user?.display_name || appState.user?.first_name || appState.user?.username || 'U').charAt(0).toUpperCase()}
               </Avatar>
             </IconButton>
           </Box>
@@ -378,7 +398,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ appState, onMenuToggle })
           <IconButton
             color="inherit"
             aria-label="menu"
-            onClick={appState.isAuthenticated ? handleMobileMenuOpen : onMenuToggle}
+            onClick={appState.isAuthenticated ? onMenuToggle : handleMobileMenuOpen}
             sx={{ 
               color: '#333333',
               ml: 1,

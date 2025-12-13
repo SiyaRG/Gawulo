@@ -7,6 +7,15 @@ export interface User {
   first_name: string;
   last_name: string;
   phone_number?: string;
+  country?: string;
+  primary_language?: string;
+  display_name?: string;
+  profile_picture?: string;
+  address_line1?: string;
+  address_line2?: string;
+  address_city?: string;
+  address_state_province?: string;
+  address_postal_code?: string;
   user_type: 'vendor' | 'customer' | 'admin' | 'support';
   is_verified: boolean;
   offline_capable: boolean;
@@ -72,7 +81,16 @@ export interface AuthResponse {
   user: User;
   access: string;
   refresh: string;
+  requires_2fa?: boolean;
 }
+
+export interface TwoFactorAuthResponse {
+  requires_2fa: true;
+  session_token: string;
+  message: string;
+}
+
+export type LoginResponse = AuthResponse | TwoFactorAuthResponse;
 
 export interface TokenRefreshResponse {
   access: string;
@@ -402,13 +420,12 @@ export interface Cart {
 
 // Form types
 export interface LoginForm {
-  username: string;
+  email: string;
   password: string;
   rememberMe?: boolean;
 }
 
 export interface RegisterForm {
-  username: string;
   email: string;
   password: string;
   confirm_password: string;
@@ -418,6 +435,11 @@ export interface RegisterForm {
   phone_number?: string;
   country?: string;
   primary_language?: string;
+}
+
+export interface OTPVerificationRequest {
+  otp_code: string;
+  session_token: string;
 }
 
 export interface UserProfile {
@@ -438,6 +460,11 @@ export interface ProfileUpdateForm {
   phone_number?: string;
   country?: string;
   primary_language?: string;
+  address_line1?: string;
+  address_line2?: string;
+  address_city?: string;
+  address_state_province?: string;
+  address_postal_code?: string;
 }
 
 export interface CountryCodes {

@@ -33,7 +33,6 @@ const BRAND_COLORS = {
 
 const UserRegistrationForm: React.FC = () => {
   const [formData, setFormData] = useState<RegisterForm>({
-    username: '',
     email: '',
     password: '',
     confirm_password: '',
@@ -101,12 +100,6 @@ const UserRegistrationForm: React.FC = () => {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
-    }
-
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -170,13 +163,12 @@ const UserRegistrationForm: React.FC = () => {
 
     // Prepare registration data
     const registrationData = {
-      username: formData.username.trim(),
       email: formData.email.trim(),
       password: formData.password,
       confirm_password: formData.confirm_password,
       first_name: formData.first_name?.trim() || '',
       last_name: formData.last_name?.trim() || '',
-      display_name: formData.display_name?.trim() || formData.username.trim(),
+      display_name: formData.display_name?.trim() || formData.email.split('@')[0],
       phone_number: formData.phone_number?.trim() || '',
       country: formData.country?.trim() || '',
       primary_language: formData.primary_language?.trim() || '',
@@ -290,7 +282,7 @@ const UserRegistrationForm: React.FC = () => {
               sx={{ 
                 mb: 4,
                 color: '#666666',
-                fontSize: '1rem',
+                fontSize: '0.8rem',
               }}
             >
               Join ReachHub. Trust as a Service.
@@ -311,31 +303,6 @@ const UserRegistrationForm: React.FC = () => {
               <Typography variant="h6" sx={{ mb: 2, color: BRAND_COLORS.darkText, fontWeight: 600 }}>
                 Account Information
               </Typography>
-              
-              <TextField
-                fullWidth
-                label="Username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                margin="normal"
-                required
-                disabled={register.isLoading}
-                autoComplete="username"
-                error={!!errors.username}
-                helperText={errors.username}
-                sx={{
-                  mb: 2,
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: BRAND_COLORS.primary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: BRAND_COLORS.primary,
-                    },
-                  },
-                }}
-              />
               
               <TextField
                 fullWidth
@@ -474,7 +441,7 @@ const UserRegistrationForm: React.FC = () => {
                 onChange={handleChange}
                 margin="normal"
                 disabled={register.isLoading}
-                helperText="How your name will appear to others (defaults to username)"
+                helperText="How your name will appear to others (defaults to email username)"
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
@@ -664,7 +631,7 @@ const UserRegistrationForm: React.FC = () => {
                   mt: 2,
                   mb: 2,
                   py: 1.5,
-                  fontSize: '1.1rem',
+                  fontSize: '0.88rem',
                   fontWeight: 600,
                   backgroundColor: BRAND_COLORS.primary,
                   borderRadius: '9999px',
@@ -691,7 +658,7 @@ const UserRegistrationForm: React.FC = () => {
               sx={{ 
                 mt: 3,
                 color: '#666666',
-                fontSize: '0.875rem',
+                fontSize: '0.7rem',
               }}
             >
               Already have an account?{' '}

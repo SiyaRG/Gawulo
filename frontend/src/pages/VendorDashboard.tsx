@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useVendorOrders, useVendorMenu, useCreateMenuItem, useUpdateMenuItem, useDeleteMenuItem, useUpdateOrderStatus } from '../hooks/useApi';
 import { MenuItem as MenuItemType, Order } from '../types/index';
+import LoadingLogo from '../components/LoadingLogo';
 
 interface VendorDashboardProps {
   appState: any;
@@ -137,11 +138,7 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
   };
 
   if (ordersLoading || menuLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingLogo />;
   }
 
   return (

@@ -17,6 +17,7 @@ import SettingsPage from '../pages/SettingsPage';
 import Services from '../pages/UnauthenticatedPages/Services';
 import About from '../pages/UnauthenticatedPages/About';
 import Contact from '../pages/UnauthenticatedPages/Contact';
+import OAuthCallback from '../pages/OAuthCallback';
 import { AppState } from '../types/index';
 
 interface RouterWrapperProps {
@@ -66,6 +67,7 @@ const RouterWrapper: React.FC<RouterWrapperProps> = ({ appState }) => {
           <Contact />
         </Layout>
       } />
+      <Route path="/oauth/callback" element={<OAuthCallback />} />
       
       {/* Protected routes */}
       <Route 

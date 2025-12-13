@@ -1,20 +1,27 @@
 // React Query hooks for API integration
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../services/api';
-import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, Country, Language } from '../types/index';
+import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, Country, Language, ProfileUpdateForm } from '../types/index';
 
 // Authentication hooks
 export const useLogin = () => {
   const queryClient = useQueryClient();
   
   return useMutation(
-    ({ username, password }: { username: string; password: string }) =>
-      api.login(username, password),
+    ({ email, password }: { email: string; password: string }) =>
+      api.login(email, password),
     {
       onSuccess: (data) => {
-        // Set the user data directly - token is already in localStorage from API service
-        // No need to invalidate - we're setting fresh data from the login response
-        queryClient.setQueryData(['user', 'current'], data.user);
+        // Check if 2FA is required - if so, don't set user data yet
+        if ('requires_2fa' in data && data.requires_2fa) {
+          return;
+        }
+        // Type guard: if it's not a 2FA response, it must be AuthResponse
+        if ('user' in data) {
+          // Set the user data directly - token is already in localStorage from API service
+          // No need to invalidate - we're setting fresh data from the login response
+          queryClient.setQueryData(['user', 'current'], data.user);
+        }
         // Success/Error handling is done in the component via AlertMessage
       },
     }
@@ -458,6 +465,55 @@ export const useCurrentUser = () => {
       retry: false,
       refetchOnMount: true, // Refetch on mount to ensure fresh state after logout
       refetchOnWindowFocus: false,
+    }
+  );
+};
+
+export const useUpdateProfile = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    (profileData: ProfileUpdateForm) => api.updateProfile(profileData),
+    {
+      onSuccess: (data) => {
+        // Update the user cache with the new data
+        queryClient.setQueryData(['user', 'current'], data);
+        // Invalidate to ensure fresh data on next fetch
+        queryClient.invalidateQueries(['user', 'current']);
+        // Success/Error handling is done in the component via AlertMessage
+      },
+    }
+  );
+};
+
+export const useUploadProfilePicture = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    (file: File) => api.uploadProfilePicture(file),
+    {
+      onSuccess: (data) => {
+        // Update the user cache with the new data
+        queryClient.setQueryData(['user', 'current'], data);
+        queryClient.invalidateQueries(['user', 'current']);
+        // Success/Error handling is done in the component via AlertMessage
+      },
+    }
+  );
+};
+
+export const useDeleteProfilePicture = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    () => api.deleteProfilePicture(),
+    {
+      onSuccess: (data) => {
+        // Update the user cache with the new data
+        queryClient.setQueryData(['user', 'current'], data);
+        queryClient.invalidateQueries(['user', 'current']);
+        // Success/Error handling is done in the component via AlertMessage
+      },
     }
   );
 };

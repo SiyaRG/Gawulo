@@ -61,3 +61,7 @@ dj-database-url==2.1.0
 
 # Development dependencies
 gunicorn==21.2.0
+
+# Authentication dependencies
+django-allauth==0.57.0
+pyotp==2.9.0

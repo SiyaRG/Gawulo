@@ -201,7 +201,7 @@ const Services: React.FC = () => {
               sx={{
                 color: BRAND_COLORS.darkText,
                 lineHeight: 1.8,
-                fontSize: '1.05rem',
+                fontSize: '0.84rem',
                 mb: 4,
                 maxWidth: '900px',
               }}
@@ -314,7 +314,7 @@ const Services: React.FC = () => {
                         primaryTypographyProps={{
                           sx: {
                             color: BRAND_COLORS.darkText,
-                            fontSize: '1.05rem',
+                            fontSize: '0.84rem',
                           },
                         }}
                       />
@@ -334,7 +334,7 @@ const Services: React.FC = () => {
                     color: BRAND_COLORS.white,
                     px: 5,
                     py: 1.5,
-                    fontSize: '1.1rem',
+                    fontSize: '0.88rem',
                     fontWeight: 600,
                     borderRadius: '9999px',
                     boxShadow: '0 0 40px -10px rgba(39, 174, 96, 0.5)',

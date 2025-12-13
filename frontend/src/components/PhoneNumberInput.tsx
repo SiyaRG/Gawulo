@@ -38,20 +38,70 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
   const parsePhoneNumber = (phone: string): { countryCode: string; number: string } => {
     if (!phone) return { countryCode: '', number: '' };
     
+    // Remove any whitespace and normalize
+    const normalized = phone.trim();
+    
     // Try to extract country code from phone number
-    // Format: +27 12 345 6789 or +27123456789 or 27 12 345 6789
-    const match = phone.match(/^\+?(\d{1,4})\s*(.+)$/);
-    if (match) {
-      const code = match[1];
-      const num = match[2].trim();
-      // Find country by calling code (without +)
-      const country = countries.find(c => c.codes?.calling_code === code);
+    // Format: +27 12 345 6789 or +27123456789 or 27 12 345 6789 or +27-12-345-6789
+    // Try matching with + prefix first
+    const withPlusMatch = normalized.match(/^\+(\d{1,4})[\s\-]*(.+)$/);
+    if (withPlusMatch) {
+      const code = withPlusMatch[1];
+      const num = withPlusMatch[2].trim();
+      // Find country by calling code (try with and without +)
+      const country = countries.find(c => {
+        const callingCode = c.codes?.calling_code;
+        if (!callingCode) return false;
+        // Remove + if present and compare
+        const normalizedCallingCode = callingCode.replace(/^\+/, '');
+        return normalizedCallingCode === code;
+      });
       if (country) {
         return { countryCode: country.iso_alpha2, number: num };
       }
     }
     
-    return { countryCode: '', number: phone };
+    // Try matching without + prefix
+    const withoutPlusMatch = normalized.match(/^(\d{1,4})[\s\-]+(.+)$/);
+    if (withoutPlusMatch) {
+      const code = withoutPlusMatch[1];
+      const num = withoutPlusMatch[2].trim();
+      // Find country by calling code
+      const country = countries.find(c => {
+        const callingCode = c.codes?.calling_code;
+        if (!callingCode) return false;
+        // Remove + if present and compare
+        const normalizedCallingCode = callingCode.replace(/^\+/, '');
+        return normalizedCallingCode === code;
+      });
+      if (country) {
+        return { countryCode: country.iso_alpha2, number: num };
+      }
+    }
+    
+    // If no match found, check if the entire number starts with a known country code
+    // This handles cases like "27123456789" where there's no separator
+    if (countries.length > 0) {
+      // Try matching longest country codes first (up to 4 digits)
+      for (let codeLength = 4; codeLength >= 1; codeLength--) {
+        const potentialCode = normalized.substring(0, codeLength);
+        const remainingNumber = normalized.substring(codeLength);
+        
+        const country = countries.find(c => {
+          const callingCode = c.codes?.calling_code;
+          if (!callingCode) return false;
+          const normalizedCallingCode = callingCode.replace(/^\+/, '');
+          return normalizedCallingCode === potentialCode && remainingNumber.length > 0;
+        });
+        
+        if (country) {
+          return { countryCode: country.iso_alpha2, number: remainingNumber };
+        }
+      }
+    }
+    
+    // If no country code found, return the whole thing as the number
+    return { countryCode: '', number: normalized };
   };
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
@@ -73,10 +123,39 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
       if (parsed.countryCode) {
         const country = countries.find(c => c.iso_alpha2 === parsed.countryCode);
         setSelectedCountry(country || null);
-        setPhoneNumber(parsed.number);
+        // Ensure we only set the number part (without country code)
+        // Remove any remaining country code patterns that might have slipped through
+        let cleanNumber = parsed.number;
+        // Remove any leading country code patterns that might still be in the number
+        if (country?.codes?.calling_code) {
+          const callingCode = country.codes.calling_code.replace(/^\+/, '');
+          // Remove country code if it appears at the start of the number
+          cleanNumber = cleanNumber.replace(new RegExp(`^\\+?${callingCode}[\\s\\-]*`), '');
+        }
+        setPhoneNumber(cleanNumber);
         userManuallyChangedCountry.current = true; // Value came from external source
       } else {
-        setPhoneNumber(parsed.number);
+        // No country code found, use the whole value as the number
+        // But ensure it doesn't start with a known country code
+        let cleanNumber = parsed.number;
+        // Try to remove any leading country codes that might be in the number
+        if (countries.length > 0) {
+          for (let codeLength = 4; codeLength >= 1; codeLength--) {
+            const potentialCode = cleanNumber.substring(0, codeLength);
+            const country = countries.find(c => {
+              const callingCode = c.codes?.calling_code;
+              if (!callingCode) return false;
+              const normalizedCallingCode = callingCode.replace(/^\+/, '');
+              return normalizedCallingCode === potentialCode;
+            });
+            if (country) {
+              cleanNumber = cleanNumber.substring(codeLength).trim();
+              setSelectedCountry(country);
+              break;
+            }
+          }
+        }
+        setPhoneNumber(cleanNumber);
       }
     } else {
       setSelectedCountry(null);
@@ -131,25 +210,49 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const num = e.target.value;
+    let num = e.target.value;
+    
+    // Prevent "0" as the first character
+    // If the field is empty (or was just cleared) and user tries to enter "0", ignore it
+    if (phoneNumber === '' && num === '0') {
+      return; // Ignore the input completely
+    }
+    
+    // If the new value starts with "0" and the field was empty, remove leading zeros
+    // This handles cases like pasting "0123" or typing "0" followed by other digits
+    if (phoneNumber === '' && num.startsWith('0')) {
+      const cleanedNum = num.replace(/^0+/, ''); // Remove all leading zeros
+      if (cleanedNum === '') {
+        return; // If only zeros were entered, ignore
+      }
+      num = cleanedNum; // Use the cleaned number
+    }
+    
     setPhoneNumber(num);
     updatePhoneValue(selectedCountry, num);
   };
 
   const updatePhoneValue = (country: Country | null, number: string) => {
     if (onChange) {
-      let newValue = '';
-      if (country?.codes?.calling_code && number) {
-        // Store as calling_code + number (calling_code format from API, no extra +)
+      // Always emit only the number part (without country code)
+      // The country code is stored separately in the country field
+      // The number parameter is already clean (from the input field which only shows the number)
+      const cleanNumber = number.trim();
+      
+      // Store the emitted value for comparison (we store it with country code for comparison purposes)
+      // but emit only the number
+      if (country?.codes?.calling_code && cleanNumber) {
         const code = country.codes.calling_code.startsWith('+') 
           ? country.codes.calling_code 
           : `+${country.codes.calling_code}`;
-        newValue = `${code} ${number}`;
-      } else if (number) {
-        newValue = number;
+        // Store full value for comparison, but emit only the number
+        lastEmittedValue.current = `${code} ${cleanNumber}`;
+      } else {
+        lastEmittedValue.current = cleanNumber;
       }
-      lastEmittedValue.current = newValue;
-      onChange(newValue);
+      
+      // Emit only the number part (without country code)
+      onChange(cleanNumber);
     }
   };
 
@@ -217,7 +320,7 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
                       width: '0',
                       minWidth: '0',
                       textAlign: 'left',
-                      fontSize: '0.875rem',
+                      fontSize: '0.7rem',
                     },
                   }}
                   placeholder=""
@@ -259,7 +362,7 @@ const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({
               isOptionEqualToValue={(option, value) => option.iso_alpha2 === value.iso_alpha2}
             />
             {selectedCountry?.codes?.calling_code && (
-              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.875rem', mr: 1 }}>
+              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.7rem', mr: 1 }}>
                 {selectedCountry.codes.calling_code}
               </Box>
             )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 const LoadingScreen: React.FC = () => {
   return (
@@ -13,7 +13,16 @@ const LoadingScreen: React.FC = () => {
         bgcolor: 'background.default',
       }}
     >
-      <CircularProgress size={60} sx={{ mb: 3 }} />
+      <Box
+        component="img"
+        src="/logo_animate.svg"
+        alt="Loading..."
+        sx={{
+          width: { xs: 120, sm: 160 },
+          height: { xs: 120, sm: 160 },
+          mb: 3,
+        }}
+      />
       <Typography variant="h6" color="text.secondary">
         Loading ReachHub...
       </Typography>

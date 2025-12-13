@@ -48,40 +48,40 @@ export const theme = createTheme({
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
-      fontSize: '2.5rem',
+      fontSize: '2rem',
       lineHeight: 1.2,
     },
     h2: {
       fontWeight: 700,
-      fontSize: '2rem',
+      fontSize: '1.6rem',
       lineHeight: 1.3,
     },
     h3: {
       fontWeight: 600,
-      fontSize: '1.75rem',
+      fontSize: '1.4rem',
       lineHeight: 1.4,
     },
     h4: {
       fontWeight: 600,
-      fontSize: '1.5rem',
+      fontSize: '1.2rem',
       lineHeight: 1.4,
     },
     h5: {
       fontWeight: 600,
-      fontSize: '1.25rem',
+      fontSize: '1rem',
       lineHeight: 1.4,
     },
     h6: {
       fontWeight: 600,
-      fontSize: '1.125rem',
+      fontSize: '0.9rem',
       lineHeight: 1.4,
     },
     body1: {
-      fontSize: '1rem',
+      fontSize: '0.8rem',
       lineHeight: 1.6,
     },
     body2: {
-      fontSize: '0.875rem',
+      fontSize: '0.7rem',
       lineHeight: 1.6,
     },
     button: {
@@ -90,23 +90,33 @@ export const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 6.4,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 6.4,
           textTransform: 'none',
           fontWeight: 600,
           boxShadow: 'none',
+          padding: '4px 12.8px',
+          fontSize: '0.8rem',
           '&:hover': {
-            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+            boxShadow: '0 3.2px 6.4px rgba(0,0,0,0.1)',
           },
+        },
+        sizeSmall: {
+          padding: '3.2px 9.6px',
+          fontSize: '0.7rem',
+        },
+        sizeLarge: {
+          padding: '6.4px 16px',
+          fontSize: '0.9rem',
         },
         contained: {
           '&:hover': {
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            boxShadow: '0 3.2px 6.4px rgba(0,0,0,0.2)',
           },
         },
       },
@@ -114,16 +124,28 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          borderRadius: 9.6,
+          boxShadow: '0 1.6px 6.4px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '12.8px',
+          '&:last-child': {
+            paddingBottom: '12.8px',
+          },
         },
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 12.8,
           fontWeight: 500,
+          height: '24px',
+          fontSize: '0.7rem',
         },
       },
     },
@@ -131,7 +153,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
+            borderRadius: 6.4,
+            fontSize: '0.8rem',
           },
         },
       },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   TextField,
@@ -9,14 +9,23 @@ import {
   Divider,
   Card,
   CardContent,
+  Avatar,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Edit,
   Save,
   Cancel,
+  PhotoCamera,
+  Delete,
 } from '@mui/icons-material';
 import { User, ProfileUpdateForm, Country, Language } from '../types/index';
-import { useCountries, useLanguages } from '../hooks/useApi';
+import { useCountries, useLanguages, useUploadProfilePicture, useDeleteProfilePicture } from '../hooks/useApi';
 import PhoneNumberInput from './PhoneNumberInput';
 import AlertMessage from './AlertMessage';
 
@@ -51,13 +60,23 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     phone_number: '',
     country: '',
     primary_language: '',
+    address_line1: '',
+    address_line2: '',
+    address_city: '',
+    address_state_province: '',
+    address_postal_code: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { data: countriesData, isLoading: countriesLoading } = useCountries();
   const { data: languagesData, isLoading: languagesLoading } = useLanguages();
+  const uploadPictureMutation = useUploadProfilePicture();
+  const deletePictureMutation = useDeleteProfilePicture();
   
   const countries = countriesData?.results || [];
   const languages = languagesData?.results || [];
@@ -69,13 +88,57 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         email: user.email || '',
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        display_name: (user as any).display_name || user.username || '',
+        display_name: user.display_name || user.username || '',
         phone_number: user.phone_number || '',
-        country: (user as any).country || '',
-        primary_language: (user as any).primary_language || '',
+        country: user.country || '',
+        primary_language: user.primary_language || '',
+        address_line1: user.address_line1 || '',
+        address_line2: user.address_line2 || '',
+        address_city: user.address_city || '',
+        address_state_province: user.address_state_province || '',
+        address_postal_code: user.address_postal_code || '',
       });
+      setPreviewImage(user.profile_picture || null);
     }
   }, [user]);
+
+  // Handle profile picture upload success
+  useEffect(() => {
+    if (uploadPictureMutation.isSuccess && uploadPictureMutation.data) {
+      setPreviewImage(uploadPictureMutation.data.profile_picture || null);
+      setSuccessMessage('Profile picture updated successfully!');
+      setErrorMessage(null);
+      // Update user prop if parent provides a refetch mechanism
+      // The mutation already updates React Query cache, so user should update automatically
+    }
+  }, [uploadPictureMutation.isSuccess, uploadPictureMutation.data]);
+
+  // Handle profile picture upload error
+  useEffect(() => {
+    if (uploadPictureMutation.isError) {
+      const error = uploadPictureMutation.error as Error;
+      setErrorMessage(error.message || 'Failed to upload profile picture. Please try again.');
+      setSuccessMessage(null);
+    }
+  }, [uploadPictureMutation.isError, uploadPictureMutation.error]);
+
+  // Handle profile picture delete success
+  useEffect(() => {
+    if (deletePictureMutation.isSuccess) {
+      setPreviewImage(null);
+      setSuccessMessage('Profile picture removed successfully!');
+      setErrorMessage(null);
+    }
+  }, [deletePictureMutation.isSuccess]);
+
+  // Handle profile picture delete error
+  useEffect(() => {
+    if (deletePictureMutation.isError) {
+      const error = deletePictureMutation.error as Error;
+      setErrorMessage(error.message || 'Failed to delete profile picture. Please try again.');
+      setSuccessMessage(null);
+    }
+  }, [deletePictureMutation.isError, deletePictureMutation.error]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -174,10 +237,15 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         email: user.email || '',
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        display_name: (user as any).display_name || user.username || '',
+        display_name: user.display_name || user.username || '',
         phone_number: user.phone_number || '',
-        country: (user as any).country || '',
-        primary_language: (user as any).primary_language || '',
+        country: user.country || '',
+        primary_language: user.primary_language || '',
+        address_line1: user.address_line1 || '',
+        address_line2: user.address_line2 || '',
+        address_city: user.address_city || '',
+        address_state_province: user.address_state_province || '',
+        address_postal_code: user.address_postal_code || '',
       });
     }
     setErrors({});
@@ -207,6 +275,11 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     if (formData.phone_number?.trim()) updateData.phone_number = formData.phone_number.trim();
     if (formData.country?.trim()) updateData.country = formData.country.trim();
     if (formData.primary_language?.trim()) updateData.primary_language = formData.primary_language.trim();
+    if (formData.address_line1?.trim()) updateData.address_line1 = formData.address_line1.trim();
+    if (formData.address_line2?.trim()) updateData.address_line2 = formData.address_line2.trim();
+    if (formData.address_city?.trim()) updateData.address_city = formData.address_city.trim();
+    if (formData.address_state_province?.trim()) updateData.address_state_province = formData.address_state_province.trim();
+    if (formData.address_postal_code?.trim()) updateData.address_postal_code = formData.address_postal_code.trim();
 
     if (onSave) {
       onSave(updateData);
@@ -274,6 +347,105 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
               </Button>
             )}
           </Box>
+
+          {/* Profile Picture Section */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4, py: 2 }}>
+            <Box sx={{ position: 'relative', mb: 2 }}>
+              <Avatar
+                src={previewImage || undefined}
+                sx={{
+                  width: 120,
+                  height: 120,
+                  bgcolor: BRAND_COLORS.primary,
+                  fontSize: '3rem',
+                  border: `3px solid ${BRAND_COLORS.primary}`,
+                }}
+              >
+                {!previewImage && (user.display_name || user.first_name || user.username || 'U').charAt(0).toUpperCase()}
+              </Avatar>
+              {isEditMode && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file type
+                        if (!file.type.startsWith('image/')) {
+                          setErrorMessage('Please select an image file.');
+                          return;
+                        }
+                        // Validate file size (5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                          setErrorMessage('Image size must be less than 5MB.');
+                          return;
+                        }
+                        // Create preview
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setPreviewImage(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                        // Upload file
+                        uploadPictureMutation.mutate(file);
+                      }
+                    }}
+                  />
+                  <IconButton
+                    color="primary"
+                    aria-label="upload picture"
+                    component="span"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading || uploadPictureMutation.isLoading}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      bgcolor: BRAND_COLORS.primary,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: '#1E7D47',
+                      },
+                    }}
+                  >
+                    <PhotoCamera />
+                  </IconButton>
+                  {previewImage && (
+                    <IconButton
+                      color="error"
+                      aria-label="delete picture"
+                      component="span"
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      disabled={isLoading || deletePictureMutation.isLoading}
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: 'error.dark',
+                        },
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
+                  )}
+                </>
+              )}
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+              {isEditMode ? 'Click the camera icon to upload a new profile picture' : 'Profile Picture'}
+            </Typography>
+            {(uploadPictureMutation.isLoading || deletePictureMutation.isLoading) && (
+              <CircularProgress size={24} sx={{ mt: 1 }} />
+            )}
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
 
           {/* Account Information Section */}
           <Typography variant="h6" sx={{ mb: 2, color: BRAND_COLORS.darkText, fontWeight: 600 }}>
@@ -394,6 +566,36 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             Contact Information
           </Typography>
 
+          <Box sx={{ mb: 2, mt: 2 }}>
+            <PhoneNumberInput
+              value={formData.phone_number}
+              onChange={(value) => {
+                setFormData({
+                  ...formData,
+                  phone_number: value,
+                });
+                if (errors.phone_number) {
+                  setErrors({
+                    ...errors,
+                    phone_number: '',
+                  });
+                }
+              }}
+              error={!!errors.phone_number}
+              helperText={errors.phone_number}
+              disabled={!isEditMode || isLoading}
+              label="Phone Number"
+              defaultCountryCode={formData.country}
+            />
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Address Information Section */}
+          <Typography variant="h6" sx={{ mb: 2, color: BRAND_COLORS.darkText, fontWeight: 600 }}>
+            Address Information
+          </Typography>
+
           <Autocomplete
             options={countries}
             getOptionLabel={(option) => {
@@ -491,28 +693,111 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             isOptionEqualToValue={(option, value) => option.iso_alpha2 === value.iso_alpha2}
           />
 
-          <Box sx={{ mb: 2, mt: 2 }}>
-            <PhoneNumberInput
-              value={formData.phone_number}
-              onChange={(value) => {
-                setFormData({
-                  ...formData,
-                  phone_number: value,
-                });
-                if (errors.phone_number) {
-                  setErrors({
-                    ...errors,
-                    phone_number: '',
-                  });
-                }
-              }}
-              error={!!errors.phone_number}
-              helperText={errors.phone_number}
-              disabled={!isEditMode || isLoading}
-              label="Phone Number"
-              defaultCountryCode={formData.country}
-            />
-          </Box>
+          <TextField
+            fullWidth
+            label="Address Line 1"
+            name="address_line1"
+            value={formData.address_line1}
+            onChange={handleChange}
+            margin="normal"
+            disabled={!isEditMode || isLoading}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Address Line 2"
+            name="address_line2"
+            value={formData.address_line2}
+            onChange={handleChange}
+            margin="normal"
+            disabled={!isEditMode || isLoading}
+            helperText="Apartment, suite, unit, building, floor, etc."
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="City"
+            name="address_city"
+            value={formData.address_city}
+            onChange={handleChange}
+            margin="normal"
+            disabled={!isEditMode || isLoading}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="State/Province"
+            name="address_state_province"
+            value={formData.address_state_province}
+            onChange={handleChange}
+            margin="normal"
+            disabled={!isEditMode || isLoading}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Postal Code"
+            name="address_postal_code"
+            value={formData.address_postal_code}
+            onChange={handleChange}
+            margin="normal"
+            disabled={!isEditMode || isLoading}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: BRAND_COLORS.primary,
+                },
+              },
+            }}
+          />
 
           <Divider sx={{ my: 3 }} />
 
@@ -603,6 +888,53 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog for Delete Profile Picture */}
+      <Dialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        aria-labelledby="delete-picture-dialog-title"
+        aria-describedby="delete-picture-dialog-description"
+      >
+        <DialogTitle id="delete-picture-dialog-title" sx={{ color: BRAND_COLORS.darkText }}>
+          Remove Profile Picture
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-picture-dialog-description" sx={{ color: BRAND_COLORS.darkText }}>
+            Are you sure you want to remove your profile picture? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConfirmDeleteOpen(false)}
+            sx={{
+              color: BRAND_COLORS.darkText,
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConfirmDeleteOpen(false);
+              deletePictureMutation.mutate();
+            }}
+            color="error"
+            variant="contained"
+            disabled={deletePictureMutation.isLoading}
+            sx={{
+              backgroundColor: '#ef4444',
+              '&:hover': {
+                backgroundColor: '#dc2626',
+              },
+            }}
+          >
+            {deletePictureMutation.isLoading ? 'Removing...' : 'Remove'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

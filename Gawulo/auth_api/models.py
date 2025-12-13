@@ -64,6 +64,94 @@ class PasswordResetToken(models.Model):
         super().save(*args, **kwargs)
 
 
+class OTPVerification(models.Model):
+    """
+    OTP verification model for two-factor authentication.
+    
+    Stores hashed OTP codes with expiration dates and usage tracking.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_verifications')
+    otp_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    session_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = 'OTP Verification'
+        verbose_name_plural = 'OTP Verifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_used', 'expires_at']),
+            models.Index(fields=['session_token']),
+        ]
+    
+    def __str__(self):
+        return f"OTP for {self.user.email} - {self.created_at}"
+    
+    def generate_otp(self):
+        """Generate a secure 6-digit OTP and store its hash."""
+        import random
+        otp = str(random.randint(100000, 999999))
+        self.otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+        self.save()
+        return otp
+    
+    def verify_otp(self, otp):
+        """Verify if the provided OTP matches the stored hash."""
+        if self.is_used:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+        return otp_hash == self.otp_hash
+    
+    def mark_as_used(self):
+        """Mark the OTP as used."""
+        self.is_used = True
+        self.save()
+    
+    def is_valid(self):
+        """Check if OTP is still valid (not used and not expired)."""
+        return not self.is_used and timezone.now() <= self.expires_at
+
+
+class OAuthAccount(models.Model):
+    """
+    OAuth account model for linking social authentication providers to users.
+    
+    Stores provider information and links to user accounts.
+    """
+    
+    PROVIDER_CHOICES = (
+        ('google', 'Google'),
+        ('facebook', 'Facebook'),
+    )
+    
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='oauth_accounts')
+    provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=255)
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'OAuth Account'
+        verbose_name_plural = 'OAuth Accounts'
+        ordering = ['-created_at']
+        unique_together = [['provider', 'provider_user_id']]
+        indexes = [
+            models.Index(fields=['provider', 'provider_user_id']),
+            models.Index(fields=['user', 'provider']),
+            models.Index(fields=['email']),
+        ]
+    
+    def __str__(self):
+        return f"{self.provider} account for {self.email}"
+
+
 class Customer(models.Model):
     """
     Customer profile model extending Django User.
@@ -132,14 +220,6 @@ class UserProfile(models.Model):
         null=True,
         help_text="User's phone number"
     )
-    country = models.ForeignKey(
-        'lookups.Country',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='user_profiles',
-        help_text="User's country"
-    )
     country_code = models.CharField(
         max_length=10,
         blank=True,
@@ -168,6 +248,10 @@ class UserProfile(models.Model):
         blank=True,
         help_text="Languages the user speaks/understands"
     )
+    two_factor_enabled = models.BooleanField(
+        default=False,
+        help_text="Whether two-factor authentication is enabled for this user"
+    )
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -179,10 +263,10 @@ class UserProfile(models.Model):
         return f"Profile for {self.user.username}"
     
     def save(self, *args, **kwargs):
-        """Auto-populate country_code from country if not provided."""
-        if self.country and not self.country_code:
+        """Auto-populate country_code from primary_address country if not provided."""
+        if not self.country_code and self.primary_address and self.primary_address.country:
             try:
-                country_codes = self.country.codes
+                country_codes = self.primary_address.country.codes
                 if country_codes and country_codes.calling_code:
                     self.country_code = f"+{country_codes.calling_code}"
             except (AttributeError, Exception):
@@ -239,7 +323,14 @@ class Address(models.Model):
     city = models.CharField(max_length=100)
     state_province = models.CharField(max_length=100, null=True, blank=True)
     postal_code = models.CharField(max_length=20)
-    country = models.CharField(max_length=100)
+    country = models.ForeignKey(
+        'lookups.Country',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='addresses',
+        help_text="Country for this address"
+    )
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
     class Meta:
@@ -252,14 +343,16 @@ class Address(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.line1}, {self.city}, {self.postal_code}, {self.country}"
+        country_name = self.country.name if self.country else 'N/A'
+        return f"{self.line1}, {self.city}, {self.postal_code}, {country_name}"
     
     def get_full_address(self):
         """Get formatted full address string."""
         parts = [self.line1]
         if self.line2:
             parts.append(self.line2)
-        parts.extend([self.city, self.state_province, self.postal_code, self.country])
+        country_name = self.country.name if self.country else ''
+        parts.extend([self.city, self.state_province, self.postal_code, country_name])
         return ', '.join(filter(None, parts))
     
     def save(self, *args, **kwargs):
@@ -283,12 +376,25 @@ class UserDocument(models.Model):
         ('proof_of_address', 'Proof of Address'),
         ('profile_picture', 'Profile Picture'),
         ('other', 'Other'),
+        ('proof_of_account', 'Proof of Account'),
     )
     
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')
     file_name = models.CharField(max_length=255)
     document_type = models.CharField(max_length=100, choices=DOCUMENT_TYPES, null=True, blank=True)
+    file = models.FileField(
+        upload_to='user_documents/',
+        null=True,
+        blank=True,
+        help_text="Uploaded file"
+    )
+    external_url = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="External URL for the document (e.g., OAuth profile picture)"
+    )
     storage_path = models.CharField(max_length=512, null=True, blank=True)
     mime_type = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)

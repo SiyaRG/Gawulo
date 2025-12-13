@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.db import models
-from .models import PasswordResetToken, Customer, Address, UserDocument, UserPermissions, UserProfile
+from .models import (
+    PasswordResetToken, Customer, Address, UserDocument, UserPermissions, UserProfile,
+    OTPVerification, OAuthAccount
+)
 
 
 @admin.register(PasswordResetToken)
@@ -39,8 +42,8 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'phone_number', 'country', 'country_code', 'primary_language', 'created_at', 'updated_at']
-    list_filter = ['country', 'primary_language', 'created_at', 'updated_at']
+    list_display = ['user', 'phone_number', 'country_code', 'primary_language', 'created_at', 'updated_at']
+    list_filter = ['primary_language', 'created_at', 'updated_at']
     search_fields = ['user__username', 'user__email', 'phone_number', 'country_code']
     readonly_fields = ['created_at', 'updated_at']
     filter_horizontal = ['languages']
@@ -49,14 +52,19 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Contact Information', {
-            'fields': ('phone_number', 'country', 'country_code')
+            'fields': ('phone_number', 'country_code')
         }),
         ('Address', {
-            'fields': ('primary_address',)
+            'fields': ('primary_address',),
+            'description': 'Country is stored in the primary address.'
         }),
         ('Languages', {
             'fields': ('primary_language', 'languages'),
             'description': 'Primary language is used for UI preferences. Languages field supports multiple languages.'
+        }),
+        ('Security', {
+            'fields': ('two_factor_enabled',),
+            'description': 'Enable two-factor authentication for this user.'
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -67,9 +75,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ['line1', 'city', 'postal_code', 'country', 'user', 'entity_type', 'address_type', 'created_at']
+    list_display = ['line1', 'city', 'postal_code', 'get_country_name', 'user', 'entity_type', 'address_type', 'created_at']
     list_filter = ['country', 'address_type', 'entity_type', 'created_at']
-    search_fields = ['line1', 'line2', 'city', 'postal_code', 'country', 'user__username', 'user__email']
+    search_fields = ['line1', 'line2', 'city', 'postal_code', 'country__name', 'country__iso_alpha2', 'user__username', 'user__email']
     readonly_fields = ['id', 'created_at']
     fieldsets = (
         ('Address Information', {
@@ -87,6 +95,11 @@ class AddressAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def get_country_name(self, obj):
+        """Display country name in list view."""
+        return obj.country.name if obj.country else 'N/A'
+    get_country_name.short_description = 'Country'
 
 
 @admin.register(UserDocument)
@@ -207,3 +220,37 @@ class UserPermissionsAdmin(admin.ModelAdmin):
                    if isinstance(field, models.BooleanField) and getattr(obj, field.name, False))
         return count
     get_active_permissions_count.short_description = 'Active Permissions'
+
+
+@admin.register(OTPVerification)
+class OTPVerificationAdmin(admin.ModelAdmin):
+    list_display = ['user', 'expires_at', 'is_used', 'created_at']
+    list_filter = ['is_used', 'created_at', 'expires_at']
+    search_fields = ['user__username', 'user__email', 'session_token']
+    readonly_fields = ['id', 'otp_hash', 'created_at']
+    fieldsets = (
+        ('OTP Information', {
+            'fields': ('id', 'user', 'otp_hash', 'session_token', 'expires_at', 'is_used')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(OAuthAccount)
+class OAuthAccountAdmin(admin.ModelAdmin):
+    list_display = ['user', 'provider', 'email', 'provider_user_id', 'created_at']
+    list_filter = ['provider', 'created_at']
+    search_fields = ['user__username', 'user__email', 'email', 'provider_user_id']
+    readonly_fields = ['id', 'created_at']
+    fieldsets = (
+        ('OAuth Account Information', {
+            'fields': ('id', 'user', 'provider', 'provider_user_id', 'email')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )

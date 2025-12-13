@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework import routers
+from auth_api.views import ProfileUpdateView, ProfilePictureUploadView
 
 # Create a router and register our viewsets with it
 router = routers.DefaultRouter()
@@ -27,6 +28,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/auth/', include('auth_api.urls')),
+    path('api/users/profile/update/', ProfileUpdateView.as_view(), name='profile_update'),
+    path('api/users/profile/picture/', ProfilePictureUploadView.as_view(), name='profile_picture_upload'),
     path('api/vendors/', include('vendors.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/payments/', include('payments.urls')),

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import { AppState, ProfileUpdateForm } from '../types/index';
-import { useCurrentUser } from '../hooks/useApi';
+import { useCurrentUser, useUpdateProfile } from '../hooks/useApi';
 import ProfileEditForm from '../components/ProfileEditForm';
 import AlertMessage from '../components/AlertMessage';
-import api from '../services/api';
+import LoadingLogo from '../components/LoadingLogo';
 
 // Trust as a Service brand colors
 const BRAND_COLORS = {
@@ -21,32 +21,33 @@ interface ProfilePageProps {
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ appState }) => {
   const { data: user, isLoading, error, refetch } = useCurrentUser();
+  const updateProfileMutation = useUpdateProfile();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+
+  // Handle mutation success
+  useEffect(() => {
+    if (updateProfileMutation.isSuccess) {
+      setSuccessMessage('Profile updated successfully!');
+      setErrorMessage(null);
+      // Refetch user data to ensure we have the latest
+      refetch();
+    }
+  }, [updateProfileMutation.isSuccess, refetch]);
+
+  // Handle mutation error
+  useEffect(() => {
+    if (updateProfileMutation.isError) {
+      const error = updateProfileMutation.error as Error;
+      setErrorMessage(error.message || 'Failed to update profile. Please try again.');
+      setSuccessMessage(null);
+    }
+  }, [updateProfileMutation.isError, updateProfileMutation.error]);
 
   const handleSave = async (updateData: ProfileUpdateForm) => {
-    setIsSaving(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-
-    try {
-      // Note: This endpoint doesn't exist yet, but we prepare the structure
-      // When the backend endpoint is created, uncomment this:
-      // await api.updateProfile(updateData);
-      
-      // For now, show a message that the feature is coming soon
-      setErrorMessage('Profile update endpoint is not yet available. This feature will be available soon.');
-      
-      // When backend is ready, uncomment this:
-      // setSuccessMessage('Profile updated successfully!');
-      // await refetch();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile. Please try again.';
-      setErrorMessage(message);
-    } finally {
-      setIsSaving(false);
-    }
+    updateProfileMutation.mutate(updateData);
   };
 
   const handleCancel = () => {
@@ -57,9 +58,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ appState }) => {
   if (isLoading) {
     return (
       <Container maxWidth="md">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <CircularProgress sx={{ color: BRAND_COLORS.primary }} />
-        </Box>
+        <LoadingLogo />
       </Container>
     );
   }
@@ -135,7 +134,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ appState }) => {
         {/* Profile Edit Form */}
         <ProfileEditForm
           user={user}
-          isLoading={isSaving}
+          isLoading={updateProfileMutation.isLoading}
           onSave={handleSave}
           onCancel={handleCancel}
         />

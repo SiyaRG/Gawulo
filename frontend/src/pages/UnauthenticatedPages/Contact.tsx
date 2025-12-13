@@ -244,7 +244,7 @@ const Contact: React.FC = () => {
                       marginLeft: 'auto',
                       px: 5,
                       py: 1.5,
-                      fontSize: '1.1rem',
+                      fontSize: '0.88rem',
                       fontWeight: 600,
                       borderRadius: '9999px',
                       boxShadow: '0 0 40px -10px rgba(39, 174, 96, 0.5)',

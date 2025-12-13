@@ -146,7 +146,7 @@ const About: React.FC = () => {
               color: BRAND_COLORS.darkText,
               maxWidth: '900px',
               lineHeight: 1.8,
-              fontSize: '1.05rem',
+              fontSize: '0.84rem',
             }}
           >
             ReachHub was founded on the principle that trust should be inherent in every digital transaction. 
@@ -469,7 +469,7 @@ const About: React.FC = () => {
                       sx={{
                         color: BRAND_COLORS.accent,
                         fontWeight: 600,
-                        fontSize: '1rem',
+                        fontSize: '0.8rem',
                         mb: 3,
                       }}
                     >
@@ -488,7 +488,7 @@ const About: React.FC = () => {
                           color: BRAND_COLORS.darkText,
                           lineHeight: 1.7,
                           fontStyle: 'italic',
-                          fontSize: '0.95rem',
+                          fontSize: '0.76rem',
                         }}
                       >
                         <Box

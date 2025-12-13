@@ -1,5 +1,5 @@
 // API service for Django backend integration
-import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language } from '../types/index';
+import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language, LoginResponse } from '../types/index';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9033/api';
 
@@ -15,18 +15,47 @@ class ApiService {
   }
 
   // Authentication methods
-  async login(username: string, password: string): Promise<AuthResponse> {
+  async login(email: string, password: string): Promise<LoginResponse> {
     const response = await fetch(`${this.baseURL}/auth/login/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Login failed');
+    }
+
+    const data = await response.json();
+    
+    // Check if 2FA is required
+    if (data.requires_2fa) {
+      return data;
+    }
+    
+    // Normal login - store tokens
+    this.accessToken = data.access;
+    this.refreshToken = data.refresh;
+    localStorage.setItem('accessToken', data.access);
+    localStorage.setItem('refreshToken', data.refresh);
+    return data as AuthResponse;
+  }
+
+  async verifyOTP(otpCode: string, sessionToken: string): Promise<AuthResponse> {
+    const response = await fetch(`${this.baseURL}/auth/verify-otp/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ otp_code: otpCode, session_token: sessionToken }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'OTP verification failed');
     }
 
     const data: AuthResponse = await response.json();
@@ -35,6 +64,22 @@ class ApiService {
     localStorage.setItem('accessToken', data.access);
     localStorage.setItem('refreshToken', data.refresh);
     return data;
+  }
+
+  async oauthInitiate(provider: 'google' | 'facebook'): Promise<{ auth_url: string; provider: string }> {
+    const response = await fetch(`${this.baseURL}/auth/oauth/${provider}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to initiate ${provider} login`);
+    }
+
+    return response.json();
   }
 
   async logout(): Promise<void> {
@@ -576,9 +621,7 @@ class ApiService {
 
   // User profile methods
   async updateProfile(profileData: ProfileUpdateForm): Promise<User> {
-    // TODO: Implement when backend endpoint is available
-    // This is a placeholder for the future profile update endpoint
-    const response = await fetch(`${this.baseURL}/auth/profile/update/`, {
+    const response = await fetch(`${this.baseURL}/users/profile/update/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -589,7 +632,74 @@ class ApiService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to update profile');
+      
+      // Extract validation errors if present
+      if (errorData && typeof errorData === 'object') {
+        // Check for field-specific errors
+        const fieldErrors = Object.keys(errorData)
+          .filter(key => Array.isArray(errorData[key]) && errorData[key].length > 0)
+          .map(key => `${key}: ${errorData[key].join(', ')}`)
+          .join('; ');
+        
+        if (fieldErrors) {
+          throw new Error(fieldErrors);
+        }
+        
+        // Check for general error message
+        if (errorData.error) {
+          throw new Error(errorData.error);
+        }
+        
+        // Check for non-field error messages
+        if (errorData.detail) {
+          throw new Error(errorData.detail);
+        }
+      }
+      
+      throw new Error('Failed to update profile. Please try again.');
+    }
+
+    return response.json();
+  }
+
+  async uploadProfilePicture(file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Get auth headers but exclude Content-Type for FormData
+    const authHeaders = this.getAuthHeaders();
+    const { 'Content-Type': _, ...headersWithoutContentType } = authHeaders;
+
+    const response = await fetch(`${this.baseURL}/users/profile/picture/`, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      if (errorData.error) {
+        throw new Error(errorData.error);
+      }
+      
+      throw new Error('Failed to upload profile picture. Please try again.');
+    }
+
+    return response.json();
+  }
+
+  async deleteProfilePicture(): Promise<User> {
+    const response = await fetch(`${this.baseURL}/users/profile/picture/`, {
+      method: 'DELETE',
+      headers: {
+        ...this.getAuthHeaders(),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to delete profile picture');
     }
 
     return response.json();

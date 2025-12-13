@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { useVendors, useVendor, useVendorMenu, useCreateOrder, useMyOrders, useCreateReview } from '../hooks/useApi';
 import { Vendor, MenuItem as MenuItemType, Order } from '../types/index';
+import LoadingLogo from '../components/LoadingLogo';
 
 interface CustomerDashboardProps {
   appState: any;
@@ -173,11 +174,7 @@ const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ appState }) => {
   };
 
   if (vendorsLoading || ordersLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingLogo />;
   }
 
   return (
