@@ -2,8 +2,8 @@ Write-Host "Starting ReachHub Development Environment..." -ForegroundColor Green
 Write-Host ""
 
 # Start Django Backend Server
-Write-Host "Starting Django Backend Server..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd Gawulo; ..\gven\Scripts\activate; python manage.py runserver"
+Write-Host "Starting Django Backend Server with Daphne (ASGI)..." -ForegroundColor Yellow
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd Gawulo; ..\gven\Scripts\activate; daphne -b 0.0.0.0 -p 9033 Gawulo.asgi:application"
 
 # Start React Frontend Server
 Write-Host "Starting React Frontend Server..." -ForegroundColor Yellow

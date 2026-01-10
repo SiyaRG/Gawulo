@@ -143,6 +143,42 @@ export interface VendorStats {
     date: string;
     revenue: number;
   }>;
+  revenue_trends_30d?: Array<{
+    date: string;
+    revenue: number;
+  }>;
+  order_volume_trends?: Array<{
+    date: string;
+    count: number;
+    avg_order_value: number;
+  }>;
+  product_revenue?: Array<{
+    product_id: number;
+    product_name: string;
+    revenue: number;
+    order_count: number;
+  }>;
+  customer_insights?: {
+    total_customers: number;
+    repeat_customers: number;
+    avg_order_value: number;
+    top_customers: Array<{
+      customer_id: number;
+      name: string;
+      order_count: number;
+      total_spent: number;
+    }>;
+  };
+  hourly_order_pattern?: Array<{
+    hour: number;
+    count: number;
+  }>;
+  delivery_vs_pickup?: {
+    delivery_count: number;
+    pickup_count: number;
+    delivery_revenue: number;
+    pickup_revenue: number;
+  };
 }
 
 export interface CustomerAddress {
@@ -196,6 +232,8 @@ export interface ProductService {
   images?: ProductImage[];
   preview_image?: string;
   is_service?: boolean | null;
+  estimated_preparation_time_minutes?: number;
+  available_for?: 'delivery' | 'pickup' | 'both';
   created_at: string;
 }
 
@@ -205,13 +243,17 @@ export type MenuItemType = ProductService;
 
 export interface Review {
   id: string;
+  order?: number;
+  order_uid?: string;
   vendor: string;
-  customer: User;
+  vendor_name?: string;
+  customer: User | number;
+  customer_name?: string;
   rating: number;
   comment: string;
-  is_verified: boolean;
+  is_verified?: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Order {
@@ -222,13 +264,52 @@ export interface Order {
     display_name: string;
     user: User;
   };
+  customer_name?: string; // Added for vendor dashboard convenience
   vendor: Vendor;
   total_amount: number;
-  current_status: 'Confirmed' | 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
+  current_status: 'Confirmed' | 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Ready' | 'PickedUp' | 'Cancelled' | 'Refunded';
+  delivery_type?: 'delivery' | 'pickup';
+  delivery_address?: string;
+  delivery_instructions?: string;
+  estimated_ready_time?: string;
   is_completed: boolean;
   created_at: string;
   updated_at: string;
   line_items?: OrderLineItem[];
+  status_history?: OrderStatusHistory[];
+  review?: Review;
+}
+
+export interface OrderStatusHistory {
+  id: number;
+  order: number;
+  status: string;
+  confirmed_by_user: number;
+  confirmed_by_name?: string;
+  timestamp: string;
+}
+
+export interface OrderStats {
+  total_orders: number;
+  by_status: Record<string, number>;
+  total_revenue?: number;
+  recent_orders_count: number;
+}
+
+export interface RefundRequest {
+  id: number;
+  order: number;
+  order_uid: string;
+  requested_by: number;
+  requested_by_name: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'denied';
+  processed_by?: number;
+  processed_by_name?: string;
+  processed_at?: string;
+  denial_reason?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface OrderLineItem {

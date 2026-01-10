@@ -1,5 +1,5 @@
 // API service for Django backend integration
-import { Vendor, ProductService, Order, Review, User, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language, LoginResponse, VendorStats, ProductImage, VendorImage, CustomerAddress, FavoriteVendor, FavoriteProductService } from '../types/index';
+import { Vendor, ProductService, Order, Review, User, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language, LoginResponse, VendorStats, ProductImage, VendorImage, CustomerAddress, FavoriteVendor, FavoriteProductService, OrderStats, RefundRequest } from '../types/index';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9033/api';
 
@@ -647,7 +647,7 @@ class ApiService {
 
   async createOrder(orderData: {
     vendor_id: string;
-    delivery_type: 'delivery' | 'pickup';
+    delivery_type?: 'delivery' | 'pickup';
     delivery_address?: string;
     delivery_instructions?: string;
     items: Array<{
@@ -656,17 +656,98 @@ class ApiService {
       special_instructions?: string;
     }>;
   }): Promise<Order> {
+    // Transform the data to match backend expectations
+    // Note: special_instructions is on the Order model, not OrderLineItem
+    // We'll combine all item special instructions into the order-level special_instructions
+    const itemSpecialInstructions = orderData.items
+      .map(item => item.special_instructions)
+      .filter(inst => inst && inst.trim())
+      .join('; ');
+    
+    const transformedData: any = {
+      vendor_id: parseInt(orderData.vendor_id, 10),
+      line_items: orderData.items.map(item => ({
+        product_service_id: parseInt(item.menu_item_id, 10),
+        quantity: item.quantity,
+        // Note: special_instructions per item is not supported - it's only on Order level
+      })),
+    };
+    
+    // Add order-level special instructions if any item has them
+    // Combine with delivery instructions if both exist
+    if (itemSpecialInstructions) {
+      if (orderData.delivery_instructions) {
+        transformedData.delivery_instructions = `${orderData.delivery_instructions}\n\nItem Instructions: ${itemSpecialInstructions}`;
+      } else {
+        transformedData.delivery_instructions = `Item Instructions: ${itemSpecialInstructions}`;
+      }
+    }
+    
+    // Always include delivery_type (default to 'delivery' if not provided)
+    transformedData.delivery_type = orderData.delivery_type || 'delivery';
+    
+    // Add delivery fields if provided
+    if (orderData.delivery_address) {
+      transformedData.delivery_address = orderData.delivery_address;
+    }
+    if (orderData.delivery_instructions && !itemSpecialInstructions) {
+      transformedData.delivery_instructions = orderData.delivery_instructions;
+    }
+    
+    console.log('Transformed order data:', JSON.stringify(transformedData, null, 2));
+
     const response = await fetch(`${this.baseURL}/orders/create/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...this.getAuthHeaders(),
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(transformedData),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create order');
+      let errorMessage = 'Failed to create order';
+      try {
+        const errorData = await response.json();
+        console.error('Order creation error response:', errorData);
+        
+        // Handle different error response formats
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData.error) {
+          errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+        } else if (errorData.detail) {
+          errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+        } else if (errorData.message) {
+          errorMessage = typeof errorData.message === 'string' ? errorData.message : JSON.stringify(errorData.message);
+        } else if (typeof errorData === 'object') {
+          // Try to extract error messages from nested objects
+          const errorMessages: string[] = [];
+          for (const [key, value] of Object.entries(errorData)) {
+            if (Array.isArray(value)) {
+              errorMessages.push(`${key}: ${value.join(', ')}`);
+            } else if (typeof value === 'string') {
+              errorMessages.push(`${key}: ${value}`);
+            } else if (typeof value === 'object' && value !== null) {
+              errorMessages.push(`${key}: ${JSON.stringify(value)}`);
+            }
+          }
+          if (errorMessages.length > 0) {
+            errorMessage = errorMessages.join('; ');
+          } else {
+            errorMessage = JSON.stringify(errorData);
+          }
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, try to get text response
+        try {
+          const textResponse = await response.text();
+          errorMessage = textResponse || `HTTP ${response.status}: ${response.statusText}`;
+        } catch (textError) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -717,8 +798,127 @@ class ApiService {
     return response.json();
   }
 
-  async getMyOrders(): Promise<Order[]> {
-    const response = await fetch(`${this.baseURL}/orders/my-orders/`, {
+  async updateOrderEstimatedTime(id: string, estimatedTime: string): Promise<Order> {
+    const response = await fetch(`${this.baseURL}/orders/${id}/estimated-time/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ estimated_ready_time: estimatedTime }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update estimated ready time');
+    }
+
+    return response.json();
+  }
+
+  async requestRefund(orderId: string, reason: string): Promise<RefundRequest> {
+    const response = await fetch(`${this.baseURL}/orders/refund-requests/create/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ order: parseInt(orderId, 10), reason }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || 'Failed to request refund');
+    }
+
+    return response.json();
+  }
+
+  async getRefundRequests(params?: {
+    status?: string;
+    order?: string;
+  }): Promise<RefundRequest[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.order) queryParams.append('order', params.order);
+
+    const url = `${this.baseURL}/orders/refund-requests/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch refund requests');
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : data.results || [];
+  }
+
+  async approveRefundRequest(refundRequestId: string): Promise<RefundRequest> {
+    const response = await fetch(`${this.baseURL}/orders/refund-requests/${refundRequestId}/approve/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || errorData.message || 'Failed to approve refund request';
+      
+      // Handle 404 with better message
+      if (response.status === 404) {
+        throw new Error('This refund request is no longer pending or has already been processed.');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async denyRefundRequest(refundRequestId: string, denialReason?: string): Promise<RefundRequest> {
+    const response = await fetch(`${this.baseURL}/orders/refund-requests/${refundRequestId}/deny/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ denial_reason: denialReason || '' }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || errorData.message || 'Failed to deny refund request';
+      
+      // Handle 404 with better message
+      if (response.status === 404) {
+        throw new Error('This refund request is no longer pending or has already been processed.');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async getMyOrders(params?: {
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    ordering?: string;
+  }): Promise<Order[]> {
+    const url = new URL(`${this.baseURL}/orders/my-orders/`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), {
       headers: this.getAuthHeaders(),
     });
 
@@ -731,8 +931,21 @@ class ApiService {
     return Array.isArray(data) ? data : (data.results || []);
   }
 
-  async getVendorOrders(): Promise<Order[]> {
-    const response = await fetch(`${this.baseURL}/orders/vendor-orders/`, {
+  async getVendorOrders(params?: {
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    ordering?: string;
+  }): Promise<Order[]> {
+    const url = new URL(`${this.baseURL}/orders/vendor-orders/`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), {
       headers: this.getAuthHeaders(),
     });
 
@@ -740,10 +953,31 @@ class ApiService {
       throw new Error('Failed to fetch vendor orders');
     }
 
+    const data = await response.json();
+    // Handle paginated response or direct array
+    return Array.isArray(data) ? data : (data.results || []);
+  }
+
+  async cancelOrder(orderId: string, reason?: string): Promise<Order> {
+    const response = await fetch(`${this.baseURL}/orders/${orderId}/cancel/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ reason: reason || '' }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to cancel order';
+      throw new Error(errorMessage);
+    }
+
     return response.json();
   }
 
-  async getOrderStats(): Promise<any> {
+  async getOrderStats(): Promise<OrderStats> {
     const response = await fetch(`${this.baseURL}/orders/stats/`, {
       headers: this.getAuthHeaders(),
     });
@@ -780,14 +1014,101 @@ class ApiService {
 
   // Reviews methods
   async getVendorReviews(vendorId: string): Promise<Review[]> {
-    const response = await fetch(`${this.baseURL}/vendors/${vendorId}/reviews/`);
+    const response = await fetch(`${this.baseURL}/vendors/${vendorId}/reviews/`, {
+      headers: this.getAuthHeaders(),
+    });
     if (!response.ok) {
-      throw new Error('Failed to fetch vendor reviews');
+      const errorText = await response.text();
+      console.error('Failed to fetch vendor reviews:', response.status, errorText);
+      throw new Error(`Failed to fetch vendor reviews: ${response.status}`);
+    }
+
+    const data = await response.json();
+    // Handle both array and paginated response
+    return Array.isArray(data) ? data : (data.results || []);
+  }
+
+  async getMyReviews(): Promise<Review[]> {
+    const url = `${this.baseURL}/orders/my-reviews/`;
+    console.log('Fetching my reviews from:', url);
+    const headers = this.getAuthHeaders();
+    console.log('Auth headers:', headers);
+    
+    const response = await fetch(url, {
+      headers,
+    });
+
+    console.log('My reviews response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to fetch my reviews:', response.status, errorText);
+      throw new Error(`Failed to fetch my reviews: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('My reviews response data:', data);
+    // Handle both array and paginated response
+    const reviews = Array.isArray(data) ? data : (data.results || []);
+    console.log('Processed reviews:', reviews);
+    return reviews;
+  }
+
+  async createOrderReview(orderId: string, reviewData: {
+    rating: number;
+    comment: string;
+  }): Promise<Review> {
+    const response = await fetch(`${this.baseURL}/orders/${orderId}/review/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(reviewData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.message || 'Failed to create review');
     }
 
     return response.json();
   }
 
+  async updateReview(reviewId: string, reviewData: {
+    rating: number;
+    comment: string;
+  }): Promise<Review> {
+    const response = await fetch(`${this.baseURL}/orders/reviews/${reviewId}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(reviewData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.message || 'Failed to update review');
+    }
+
+    return response.json();
+  }
+
+  async deleteReview(reviewId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/orders/reviews/${reviewId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.message || 'Failed to delete review');
+    }
+  }
+
+  // Legacy method - kept for backward compatibility but should be replaced
   async createReview(vendorId: string, reviewData: {
     rating: number;
     comment: string;
@@ -1073,7 +1394,14 @@ class ApiService {
       throw new Error('Failed to fetch customer addresses');
     }
 
-    return response.json();
+    const data = await response.json();
+    // Handle both direct array and paginated responses
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.results && Array.isArray(data.results)) {
+      return data.results;
+    }
+    return [];
   }
 
   async createCustomerAddress(addressData: Omit<CustomerAddress, 'id' | 'user' | 'created_at'>): Promise<CustomerAddress> {

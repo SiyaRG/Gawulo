@@ -6,7 +6,7 @@ Defines models for orders, order line items, order status history, and reviews.
 
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 import uuid
 
@@ -24,16 +24,31 @@ class Order(models.Model):
         ('Processing', 'Processing'),
         ('Shipped', 'Shipped'),
         ('Delivered', 'Delivered'),
+        ('Ready', 'Ready for Pickup'),
+        ('PickedUp', 'Picked Up'),
         ('Cancelled', 'Cancelled'),
         ('Refunded', 'Refunded'),
     )
     
+    DELIVERY_TYPE = (
+        ('delivery', 'Delivery'),
+        ('pickup', 'Pickup'),
+    )
+    
     id = models.AutoField(primary_key=True)
-    order_uid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    order_uid = models.CharField(max_length=10, unique=True, editable=False)
     vendor = models.ForeignKey('vendors.Vendor', on_delete=models.CASCADE, related_name='orders')
     customer = models.ForeignKey('auth_api.Customer', on_delete=models.CASCADE, related_name='orders')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     current_status = models.CharField(max_length=50, choices=ORDER_STATUS, default='Confirmed')
+    delivery_type = models.CharField(max_length=20, choices=DELIVERY_TYPE, default='delivery', blank=True)
+    delivery_address = models.TextField(blank=True, null=True)
+    delivery_instructions = models.TextField(blank=True, null=True)
+    estimated_ready_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Estimated time when order will be ready for pickup/delivery'
+    )
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
@@ -54,7 +69,38 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         """Ensure order_uid is set if not provided and prevent modification of created_at."""
         if not self.order_uid:
-            self.order_uid = uuid.uuid4()
+            # Generate date-based order ID: YYYYMMDD-N format
+            today = timezone.now().date()
+            date_str = today.strftime('%Y%m%d')
+            
+            # Get the highest sequence number for today
+            today_orders = Order.objects.filter(
+                order_uid__startswith=date_str
+            ).exclude(pk=self.pk if self.pk else None)
+            
+            if today_orders.exists():
+                # Extract sequence numbers and find max
+                max_seq = 0
+                for order in today_orders:
+                    try:
+                        seq = int(order.order_uid.split('-')[1])
+                        max_seq = max(max_seq, seq)
+                    except (ValueError, IndexError):
+                        pass
+                sequence = max_seq + 1
+            else:
+                sequence = 1
+            
+            # Format: YYYYMMDD-N (e.g., 20250112-1)
+            self.order_uid = f"{date_str}-{sequence}"
+        
+        # Automatically set is_completed based on status
+        # Orders are completed when they are Delivered, PickedUp, or Refunded
+        if self.current_status in ['Delivered', 'PickedUp', 'Refunded']:
+            self.is_completed = True
+        else:
+            self.is_completed = False
+        
         if self.pk:
             # Preserve original created_at when updating
             original = Order.objects.get(pk=self.pk)
@@ -62,9 +108,12 @@ class Order(models.Model):
         super().save(*args, **kwargs)
     
     def mark_completed(self):
-        """Mark order as completed."""
+        """Mark order as completed. Status should already be set to Delivered, PickedUp, or Refunded."""
+        # Don't change the status - it should already be correct
+        # Just ensure is_completed is set
+        if self.current_status not in ['Delivered', 'PickedUp', 'Refunded']:
+            raise ValueError(f"Cannot mark order as completed with status '{self.current_status}'. Status must be 'Delivered', 'PickedUp', or 'Refunded'.")
         self.is_completed = True
-        self.current_status = 'Delivered'
         self.save()
 
 
@@ -161,6 +210,58 @@ class OrderStatusHistory(models.Model):
         super().save(*args, **kwargs)
 
 
+class RefundRequest(models.Model):
+    """
+    Refund request model for order refunds.
+    
+    Allows customers to request refunds and vendors/admins to approve or deny them.
+    """
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('denied', 'Denied'),
+    )
+    
+    id = models.AutoField(primary_key=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='refund_requests')
+    requested_by = models.ForeignKey('auth_api.Customer', on_delete=models.CASCADE, related_name='refund_requests')
+    reason = models.TextField(help_text='Reason for refund request')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    processed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_refund_requests',
+        help_text='User who approved or denied the refund'
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    denial_reason = models.TextField(null=True, blank=True, help_text='Reason for denial if denied')
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = 'Refund Request'
+        verbose_name_plural = 'Refund Requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'status']),
+            models.Index(fields=['requested_by', 'status']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Refund Request for Order {self.order.order_uid} - {self.get_status_display()}"
+    
+    def save(self, *args, **kwargs):
+        """Prevent modification of created_at on existing records."""
+        if self.pk:
+            original = RefundRequest.objects.get(pk=self.pk)
+            self.created_at = original.created_at
+        super().save(*args, **kwargs)
+
+
 class Review(models.Model):
     """
     Customer reviews for completed orders.
@@ -172,7 +273,7 @@ class Review(models.Model):
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review')
     vendor = models.ForeignKey('vendors.Vendor', on_delete=models.CASCADE, related_name='reviews')
     customer = models.ForeignKey('auth_api.Customer', on_delete=models.CASCADE, related_name='reviews')
-    rating = models.IntegerField(validators=[MinValueValidator(1)])
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
@@ -205,4 +306,23 @@ class Review(models.Model):
             total_rating = sum(review.rating for review in reviews)
             vendor.average_rating = round(total_rating / reviews.count(), 1)
             vendor.review_count = reviews.count()
-            vendor.save()
+        else:
+            # If no reviews, reset to 0
+            vendor.average_rating = 0.0
+            vendor.review_count = 0
+        vendor.save()
+    
+    def delete(self, *args, **kwargs):
+        """Override delete to update vendor rating when review is deleted."""
+        vendor = self.vendor
+        super().delete(*args, **kwargs)
+        # Recalculate vendor rating after deletion
+        reviews = Review.objects.filter(vendor=vendor)
+        if reviews.exists():
+            total_rating = sum(review.rating for review in reviews)
+            vendor.average_rating = round(total_rating / reviews.count(), 1)
+            vendor.review_count = reviews.count()
+        else:
+            vendor.average_rating = 0.0
+            vendor.review_count = 0
+        vendor.save()

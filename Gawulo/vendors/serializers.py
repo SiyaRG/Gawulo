@@ -50,7 +50,8 @@ class ProductServiceSerializer(serializers.ModelSerializer):
         model = ProductService
         fields = [
             'id', 'vendor', 'vendor_name', 'name', 'description',
-            'current_price', 'image', 'images', 'preview_image', 'is_service', 'created_at'
+            'current_price', 'image', 'images', 'preview_image', 'is_service',
+            'available_for', 'estimated_preparation_time_minutes', 'created_at'
         ]
         read_only_fields = ['id', 'vendor', 'created_at']
     

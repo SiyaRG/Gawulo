@@ -4,8 +4,11 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
+import logging
 from .models import Vendor, ProductService, ProductImage, VendorImage
 from orders.models import Review
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     VendorSerializer, 
     ProductServiceSerializer,
@@ -60,7 +63,7 @@ class VendorReviewsView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         vendor = get_object_or_404(Vendor, pk=self.kwargs['pk'], deleted_at__isnull=True)
-        return Review.objects.filter(vendor=vendor)
+        return Review.objects.filter(vendor=vendor).select_related('order', 'vendor', 'customer').order_by('-created_at')
     
     def perform_create(self, serializer):
         vendor = get_object_or_404(Vendor, pk=self.kwargs['pk'], deleted_at__isnull=True)
@@ -199,10 +202,22 @@ class VendorStatsView(APIView):
     
     def get(self, request):
         """Return vendor statistics."""
+        # Use both logger and print to ensure we see output
+        print("=" * 60)
+        print("VendorStatsView.get() called - Calculating revenue and popular products")
+        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("VendorStatsView.get() called - Calculating revenue and popular products")
+        logger.info("=" * 60)
+        
         try:
             vendor = request.user.vendor_profile
+            print(f"Vendor found: {vendor.id} - {vendor.name}")
+            logger.info(f"Vendor found: {vendor.id} - {vendor.name}")
         except (Vendor.DoesNotExist, AttributeError):
             # OneToOneField raises RelatedObjectDoesNotExist which inherits from AttributeError
+            print("User does not have a vendor profile")
+            logger.info("User does not have a vendor profile")
             return Response(
                 {"error": "User does not have a vendor profile."},
                 status=status.HTTP_403_FORBIDDEN
@@ -218,30 +233,76 @@ class VendorStatsView(APIView):
         from orders.models import Order
         vendor_orders = Order.objects.filter(vendor=vendor)
         total_orders = vendor_orders.count()
+        print(f"Total orders for vendor: {total_orders}")
+        logger.info(f"Total orders for vendor: {total_orders}")
         
-        # Calculate today's revenue
+        # Calculate today's revenue (include both delivered and picked up orders)
+        # Count orders that are completed regardless of delivery type
         today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_orders = vendor_orders.filter(
             created_at__gte=today_start,
-            current_status__in=['Delivered', 'Shipped']
+            current_status__in=['Delivered', 'PickedUp']
         )
         today_revenue = sum(order.total_amount for order in today_orders)
         
-        # Calculate weekly revenue
+        # Debug: Check what orders are being counted
+        print(f"Today's revenue calculation (status in ['Delivered', 'PickedUp']):")
+        print(f"  Today orders count: {today_orders.count()}")
+        logger.info(f"Today's revenue calculation (status in ['Delivered', 'PickedUp']):")
+        logger.info(f"  Today orders count: {today_orders.count()}")
+        for order in today_orders:
+            print(f"    Order {order.order_uid}: status={order.current_status}, amount={order.total_amount}, is_completed={order.is_completed}")
+            logger.info(f"    Order {order.order_uid}: status={order.current_status}, amount={order.total_amount}, is_completed={order.is_completed}")
+        print(f"  Today revenue: {today_revenue}")
+        logger.info(f"  Today revenue: {today_revenue}")
+        
+        # Calculate weekly revenue (include both delivered and picked up orders)
         week_start = today_start - timedelta(days=7)
         week_orders = vendor_orders.filter(
             created_at__gte=week_start,
-            current_status__in=['Delivered', 'Shipped']
+            current_status__in=['Delivered', 'PickedUp']
         )
         week_revenue = sum(order.total_amount for order in week_orders)
+        print(f"Week revenue (status in ['Delivered', 'PickedUp']): {week_revenue} from {week_orders.count()} orders")
+        logger.info(f"Week revenue (status in ['Delivered', 'PickedUp']): {week_revenue} from {week_orders.count()} orders")
         
-        # Calculate monthly revenue
+        # Calculate monthly revenue (include both delivered and picked up orders)
         month_start = today_start - timedelta(days=30)
         month_orders = vendor_orders.filter(
             created_at__gte=month_start,
-            current_status__in=['Delivered', 'Shipped']
+            current_status__in=['Delivered', 'PickedUp']
         )
         month_revenue = sum(order.total_amount for order in month_orders)
+        print(f"Month revenue (status in ['Delivered', 'PickedUp']): {month_revenue} from {month_orders.count()} orders")
+        logger.info(f"Month revenue (status in ['Delivered', 'PickedUp']): {month_revenue} from {month_orders.count()} orders")
+        
+        # Calculate total revenue (all time) - include both delivered and picked up orders
+        all_completed_orders = vendor_orders.filter(
+            current_status__in=['Delivered', 'PickedUp']
+        )
+        total_revenue = sum(order.total_amount for order in all_completed_orders)
+        print(f"Total revenue (status in ['Delivered', 'PickedUp']): {total_revenue} from {all_completed_orders.count()} orders")
+        logger.info(f"Total revenue (status in ['Delivered', 'PickedUp']): {total_revenue} from {all_completed_orders.count()} orders")
+        
+        # Debug: Log order counts and amounts for troubleshooting
+        delivered_orders = vendor_orders.filter(current_status='Delivered')
+        pickedup_orders = vendor_orders.filter(current_status='PickedUp')
+        delivered_count = delivered_orders.count()
+        pickedup_count = pickedup_orders.count()
+        delivered_revenue = sum(order.total_amount for order in delivered_orders)
+        pickedup_revenue = sum(order.total_amount for order in pickedup_orders)
+        print("=" * 60)
+        print("REVENUE BREAKDOWN:")
+        print(f"  Delivered: {delivered_count} orders, Revenue: {delivered_revenue}")
+        print(f"  PickedUp: {pickedup_count} orders, Revenue: {pickedup_revenue}")
+        print(f"  Total Completed: {all_completed_orders.count()} orders, Total Revenue: {total_revenue}")
+        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("REVENUE BREAKDOWN:")
+        logger.info(f"  Delivered: {delivered_count} orders, Revenue: {delivered_revenue}")
+        logger.info(f"  PickedUp: {pickedup_count} orders, Revenue: {pickedup_revenue}")
+        logger.info(f"  Total Completed: {all_completed_orders.count()} orders, Total Revenue: {total_revenue}")
+        logger.info("=" * 60)
         
         # Order status breakdown
         status_breakdown = {}
@@ -251,36 +312,241 @@ class VendorStatsView(APIView):
                 current_status=status_key
             ).count()
         
-        # Popular products (top 5 by order count)
+        # Popular products (top 5 by order count) - include both delivered and picked up orders
         from orders.models import OrderLineItem
-        from django.db.models import Count, Sum
+        from django.db.models import Count, Sum, Avg
+        
+        # Debug: Check what orders exist with each status
+        all_delivered = vendor_orders.filter(current_status='Delivered')
+        all_pickedup = vendor_orders.filter(current_status='PickedUp')
+        print("=" * 60)
+        print("POPULAR PRODUCTS CALCULATION:")
+        print(f"  Total Delivered orders: {all_delivered.count()}")
+        print(f"  Total PickedUp orders: {all_pickedup.count()}")
+        print(f"  Delivered order IDs: {list(all_delivered.values_list('id', flat=True))}")
+        print(f"  PickedUp order IDs: {list(all_pickedup.values_list('id', flat=True))}")
+        logger.info("=" * 60)
+        logger.info("POPULAR PRODUCTS CALCULATION:")
+        logger.info(f"  Total Delivered orders: {all_delivered.count()}")
+        logger.info(f"  Total PickedUp orders: {all_pickedup.count()}")
+        logger.info(f"  Delivered order IDs: {list(all_delivered.values_list('id', flat=True))}")
+        logger.info(f"  PickedUp order IDs: {list(all_pickedup.values_list('id', flat=True))}")
+        
+        # Filter for completed orders (both delivered and picked up) - use direct filter on status
+        print("Querying OrderLineItem with filter: order__vendor=vendor, order__current_status__in=['Delivered', 'PickedUp']")
+        logger.info("Querying OrderLineItem with filter: order__vendor=vendor, order__current_status__in=['Delivered', 'PickedUp']")
         popular_products = OrderLineItem.objects.filter(
             order__vendor=vendor,
-            order__current_status__in=['Delivered', 'Shipped']
+            order__current_status__in=['Delivered', 'PickedUp']
         ).values(
             'product_service__id',
             'product_service__name'
         ).annotate(
-            order_count=Count('order'),
+            order_count=Count('order', distinct=True),
             total_quantity=Sum('quantity')
         ).order_by('-order_count')[:5]
         
-        # Revenue trends (last 7 days)
-        revenue_trends = []
-        for i in range(7):
-            day_start = today_start - timedelta(days=i)
-            day_end = day_start + timedelta(days=1)
-            day_orders = vendor_orders.filter(
-                created_at__gte=day_start,
-                created_at__lt=day_end,
-                current_status__in=['Delivered', 'Shipped']
-            )
-            day_revenue = sum(order.total_amount for order in day_orders)
-            revenue_trends.append({
-                'date': day_start.date().isoformat(),
-                'revenue': float(day_revenue)
+        # Debug: Check which orders are in the popular products query
+        line_items_in_query = OrderLineItem.objects.filter(
+            order__vendor=vendor,
+            order__current_status__in=['Delivered', 'PickedUp']
+        )
+        print(f"  Line items in query: {line_items_in_query.count()}")
+        logger.info(f"  Line items in query: {line_items_in_query.count()}")
+        for item in line_items_in_query[:10]:  # Show first 10
+            print(f"    Line item: order_id={item.order.id}, order_uid={item.order.order_uid}, order_status={item.order.current_status}, product={item.product_service.name if item.product_service else 'None'}")
+            logger.info(f"    Line item: order_id={item.order.id}, order_uid={item.order.order_uid}, order_status={item.order.current_status}, product={item.product_service.name if item.product_service else 'None'}")
+        
+        # Debug: Log popular products for troubleshooting
+        print(f"  Popular products count: {popular_products.count()}")
+        logger.info(f"  Popular products count: {popular_products.count()}")
+        for product in popular_products:
+            print(f"    Product: {product['product_service__name']}, Orders: {product['order_count']}, Quantity: {product['total_quantity']}")
+            logger.info(f"    Product: {product['product_service__name']}, Orders: {product['order_count']}, Quantity: {product['total_quantity']}")
+        print("=" * 60)
+        logger.info("=" * 60)
+        
+        # TEST: Verify we reach this point
+        print("*** AFTER POPULAR PRODUCTS - CODE IS EXECUTING ***")
+        logger.info("*** AFTER POPULAR PRODUCTS - CODE IS EXECUTING ***")
+        import sys
+        sys.stdout.flush()
+        
+        # Revenue trends (last 30 days) - only completed orders for revenue
+        print(">>> STARTING 30-DAY REVENUE TRENDS CALCULATION")
+        logger.info(">>> STARTING 30-DAY REVENUE TRENDS CALCULATION")
+        sys.stdout.flush()
+        revenue_trends_30d = []
+        order_volume_trends = []
+        try:
+            for i in range(30):
+                day_start = today_start - timedelta(days=29-i)  # Start from 29 days ago, go to today
+                day_end = day_start + timedelta(days=1)
+                
+                # For revenue: only count completed orders (Delivered/PickedUp)
+                day_completed_orders = vendor_orders.filter(
+                    created_at__gte=day_start,
+                    created_at__lt=day_end,
+                    current_status__in=['Delivered', 'PickedUp']
+                )
+                day_revenue = sum(order.total_amount for order in day_completed_orders)
+                
+                # For order volume: count ALL orders created that day (not just completed)
+                day_all_orders = vendor_orders.filter(
+                    created_at__gte=day_start,
+                    created_at__lt=day_end
+                )
+                day_order_count = day_all_orders.count()
+                
+                # Calculate average order value from completed orders only
+                avg_order_value = float(day_revenue / day_completed_orders.count()) if day_completed_orders.count() > 0 else 0.0
+                
+                revenue_trends_30d.append({
+                    'date': day_start.date().isoformat(),
+                    'revenue': float(day_revenue)
+                })
+                order_volume_trends.append({
+                    'date': day_start.date().isoformat(),
+                    'count': day_order_count,
+                    'avg_order_value': avg_order_value
+                })
+        except Exception as e:
+            print(f"ERROR in 30-day trends loop: {e}")
+            logger.error(f"ERROR in 30-day trends loop: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
+        
+        # Debug: Log 30-day trends
+        print("=" * 60)
+        print("30-DAY AGGREGATES:")
+        print(f"  Revenue trends count: {len(revenue_trends_30d)}")
+        print(f"  Order volume trends count: {len(order_volume_trends)}")
+        if revenue_trends_30d:
+            print(f"  Sample revenue data: {revenue_trends_30d[:3]}")
+        if order_volume_trends:
+            print(f"  Sample volume data: {order_volume_trends[:3]}")
+        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("30-DAY AGGREGATES:")
+        logger.info(f"  Revenue trends count: {len(revenue_trends_30d)}")
+        logger.info(f"  Order volume trends count: {len(order_volume_trends)}")
+        if revenue_trends_30d:
+            logger.info(f"  Sample revenue data: {revenue_trends_30d[:3]}")
+        if order_volume_trends:
+            logger.info(f"  Sample volume data: {order_volume_trends[:3]}")
+        logger.info("=" * 60)
+        
+        # Product revenue (top products by revenue) - use same approach as popular products
+        print(">>> STARTING PRODUCT REVENUE CALCULATION")
+        logger.info(">>> STARTING PRODUCT REVENUE CALCULATION")
+        sys.stdout.flush()
+        print("=" * 60)
+        print("PRODUCT REVENUE CALCULATION:")
+        logger.info("=" * 60)
+        logger.info("PRODUCT REVENUE CALCULATION:")
+        
+        product_revenue = []  # Initialize as empty list in case of error
+        try:
+            # Use the exact same query structure as popular_products but aggregate by revenue
+            product_revenue = OrderLineItem.objects.filter(
+                order__vendor=vendor,
+                order__current_status__in=['Delivered', 'PickedUp']
+            ).values(
+                'product_service__id',
+                'product_service__name'
+            ).annotate(
+                revenue=Sum('line_total'),
+                order_count=Count('order', distinct=True)
+            ).filter(
+                product_service__id__isnull=False
+            ).order_by('-revenue')[:10]  # Top 10 products by revenue
+            
+            print(f"  Product revenue query count: {product_revenue.count()}")
+            logger.info(f"  Product revenue query count: {product_revenue.count()}")
+            sys.stdout.flush()
+            
+            # Debug: Log each product
+            for product in product_revenue:
+                revenue_value = float(product['revenue'] or 0.0)
+                print(f"    Product: {product['product_service__name']}, Revenue: {revenue_value}, Orders: {product['order_count']}")
+                logger.info(f"    Product: {product['product_service__name']}, Revenue: {revenue_value}, Orders: {product['order_count']}")
+        except Exception as e:
+            print(f"ERROR in product revenue calculation: {e}")
+            logger.error(f"ERROR in product revenue calculation: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
+            product_revenue = []  # Ensure it's defined even on error
+        
+        print("=" * 60)
+        logger.info("=" * 60)
+        sys.stdout.flush()
+        
+        # Customer insights
+        from auth_api.models import Customer
+        from django.db.models import Avg, Count, Q
+        
+        # Get all unique customers who have ordered from this vendor
+        unique_customers = vendor_orders.values('customer').distinct().count()
+        
+        # Get customers with 2+ orders (repeat customers)
+        customer_order_counts = vendor_orders.values('customer').annotate(
+            order_count=Count('id')
+        ).filter(order_count__gte=2)
+        repeat_customers_count = customer_order_counts.count()
+        
+        # Calculate average order value
+        completed_orders = vendor_orders.filter(current_status__in=['Delivered', 'PickedUp'])
+        avg_order_value = float(completed_orders.aggregate(Avg('total_amount'))['total_amount__avg'] or 0.0)
+        
+        # Top customers by order count
+        top_customers = vendor_orders.values(
+            'customer__id',
+            'customer__user__first_name',
+            'customer__user__last_name',
+            'customer__user__email'
+        ).annotate(
+            order_count=Count('id'),
+            total_spent=Sum('total_amount')
+        ).order_by('-order_count')[:5]
+        
+        # Format top customers
+        top_customers_list = []
+        for customer in top_customers:
+            top_customers_list.append({
+                'customer_id': customer['customer__id'],
+                'name': f"{customer['customer__user__first_name'] or ''} {customer['customer__user__last_name'] or ''}".strip() or customer['customer__user__email'],
+                'order_count': customer['order_count'],
+                'total_spent': float(customer['total_spent'] or 0.0)
             })
-        revenue_trends.reverse()  # Oldest to newest
+        
+        # Hourly order pattern (orders by hour of day)
+        hourly_order_pattern = []
+        for hour in range(24):
+            hour_orders = vendor_orders.filter(
+                created_at__hour=hour,
+                current_status__in=['Delivered', 'PickedUp']
+            ).count()
+            hourly_order_pattern.append({
+                'hour': hour,
+                'count': hour_orders
+            })
+        
+        # Delivery vs Pickup breakdown
+        delivery_orders = vendor_orders.filter(
+            delivery_type='delivery',
+            current_status__in=['Delivered', 'PickedUp']
+        )
+        pickup_orders = vendor_orders.filter(
+            delivery_type='pickup',
+            current_status__in=['Delivered', 'PickedUp']
+        )
+        
+        delivery_vs_pickup = {
+            'delivery_count': delivery_orders.count(),
+            'pickup_count': pickup_orders.count(),
+            'delivery_revenue': float(sum(order.total_amount for order in delivery_orders)),
+            'pickup_revenue': float(sum(order.total_amount for order in pickup_orders))
+        }
         
         stats = {
             'vendor_id': vendor.id,
@@ -292,10 +558,55 @@ class VendorStatsView(APIView):
             'today_revenue': float(today_revenue),
             'week_revenue': float(week_revenue),
             'month_revenue': float(month_revenue),
+            'total_revenue': float(total_revenue),  # All-time total revenue
             'status_breakdown': status_breakdown,
             'popular_products': list(popular_products),
-            'revenue_trends': revenue_trends,
+            'revenue_trends': revenue_trends_30d[:7],  # Keep 7-day for backward compatibility
+            'revenue_trends_30d': revenue_trends_30d,
+            'order_volume_trends': order_volume_trends,
+            'product_revenue': [
+                {
+                    'product_id': item.get('product_service__id') or item.get('product_service_id'),
+                    'product_name': item.get('product_service__name') or 'Unknown Product',
+                    'revenue': float(item.get('revenue') or 0.0),
+                    'order_count': item.get('order_count', 0)
+                }
+                for item in list(product_revenue)  # Convert to list to ensure evaluation
+            ],
+            'customer_insights': {
+                'total_customers': unique_customers,
+                'repeat_customers': repeat_customers_count,
+                'avg_order_value': avg_order_value,
+                'top_customers': top_customers_list
+            },
+            'hourly_order_pattern': hourly_order_pattern,
+            'delivery_vs_pickup': delivery_vs_pickup,
         }
+        
+        print("=" * 60)
+        print("FINAL STATS BEING RETURNED TO FRONTEND:")
+        print(f"  today_revenue: {stats['today_revenue']}")
+        print(f"  week_revenue: {stats['week_revenue']}")
+        print(f"  month_revenue: {stats['month_revenue']}")
+        print(f"  total_revenue: {stats['total_revenue']}")
+        print(f"  popular_products count: {len(stats['popular_products'])}")
+        print(f"  product_revenue count: {len(stats.get('product_revenue', []))}")
+        if stats.get('product_revenue'):
+            for pr in stats['product_revenue']:
+                print(f"    Product: {pr.get('product_name')}, Revenue: {pr.get('revenue')}, Orders: {pr.get('order_count')}")
+        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("FINAL STATS BEING RETURNED TO FRONTEND:")
+        logger.info(f"  today_revenue: {stats['today_revenue']}")
+        logger.info(f"  week_revenue: {stats['week_revenue']}")
+        logger.info(f"  month_revenue: {stats['month_revenue']}")
+        logger.info(f"  total_revenue: {stats['total_revenue']}")
+        logger.info(f"  popular_products count: {len(stats['popular_products'])}")
+        logger.info(f"  product_revenue count: {len(stats.get('product_revenue', []))}")
+        if stats.get('product_revenue'):
+            for pr in stats['product_revenue']:
+                logger.info(f"    Product: {pr.get('product_name')}, Revenue: {pr.get('revenue')}, Orders: {pr.get('order_count')}")
+        logger.info("=" * 60)
         
         return Response(stats, status=status.HTTP_200_OK)
 

@@ -8,6 +8,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from datetime import timedelta
 
 
 class Vendor(models.Model):
@@ -77,6 +78,12 @@ class ProductService(models.Model):
     with pricing and soft delete support.
     """
     
+    AVAILABLE_FOR_CHOICES = (
+        ('delivery', 'Delivery Only'),
+        ('pickup', 'Pickup Only'),
+        ('both', 'Both Delivery and Pickup'),
+    )
+    
     id = models.AutoField(primary_key=True)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='products_services')
     name = models.CharField(max_length=255)
@@ -84,6 +91,18 @@ class ProductService(models.Model):
     current_price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     is_service = models.BooleanField(null=True, blank=True)
+    estimated_preparation_time_minutes = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text='Estimated preparation time in minutes (used as default for orders)'
+    )
+    available_for = models.CharField(
+        max_length=10,
+        choices=AVAILABLE_FOR_CHOICES,
+        default='both',
+        help_text='Whether this item is available for delivery, pickup, or both'
+    )
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
     

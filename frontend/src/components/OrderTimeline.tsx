@@ -1,64 +1,46 @@
 import React from 'react';
 import { Box, Stepper, Step, StepLabel, StepContent, Typography, Chip } from '@mui/material';
 import { CheckCircle, RadioButtonUnchecked, Schedule } from '@mui/icons-material';
-
-export interface OrderStatus {
-  status: string;
-  timestamp?: string;
-  estimatedTime?: string;
-}
+import { OrderStatusHistory } from '../types/index';
+import { ORDER_STATUSES, getStatusColor } from '../utils/orderStatus';
 
 interface OrderTimelineProps {
   currentStatus: string;
-  statusHistory?: OrderStatus[];
+  statusHistory?: OrderStatusHistory[];
   estimatedDeliveryTime?: string;
+  deliveryType?: 'delivery' | 'pickup';
 }
-
-const ORDER_STATUSES = [
-  { value: 'Pending', label: 'Pending', description: 'Order received' },
-  { value: 'Confirmed', label: 'Confirmed', description: 'Order confirmed' },
-  { value: 'Processing', label: 'Processing', description: 'Preparing your order' },
-  { value: 'Shipped', label: 'Shipped', description: 'Out for delivery' },
-  { value: 'Delivered', label: 'Delivered', description: 'Order delivered' },
-  { value: 'Cancelled', label: 'Cancelled', description: 'Order cancelled' },
-  { value: 'Refunded', label: 'Refunded', description: 'Order refunded' },
-];
-
-const getStatusIndex = (status: string): number => {
-  return ORDER_STATUSES.findIndex(s => s.value === status);
-};
-
-const getStatusColor = (status: string): 'default' | 'primary' | 'success' | 'error' | 'warning' => {
-  switch (status) {
-    case 'Delivered':
-      return 'success';
-    case 'Cancelled':
-    case 'Refunded':
-      return 'error';
-    case 'Processing':
-    case 'Shipped':
-      return 'primary';
-    default:
-      return 'default';
-  }
-};
 
 const OrderTimeline: React.FC<OrderTimelineProps> = ({
   currentStatus,
   statusHistory = [],
   estimatedDeliveryTime,
+  deliveryType,
 }) => {
-  const currentIndex = getStatusIndex(currentStatus);
+  // Filter statuses based on delivery type
+  let relevantStatuses = ORDER_STATUSES;
+  if (deliveryType === 'pickup') {
+    // For pickup, show: Pending, Confirmed, Processing, Ready, PickedUp, Cancelled, Refunded
+    relevantStatuses = ORDER_STATUSES.filter(s => 
+      ['Pending', 'Confirmed', 'Processing', 'Ready', 'PickedUp', 'Cancelled', 'Refunded'].includes(s.value)
+    );
+  } else {
+    // For delivery, show: Pending, Confirmed, Processing, Shipped, Delivered, Cancelled, Refunded
+    relevantStatuses = ORDER_STATUSES.filter(s => 
+      ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Refunded'].includes(s.value)
+    );
+  }
+  
+  const currentIndex = relevantStatuses.findIndex(s => s.value === currentStatus);
   const activeStep = currentIndex >= 0 ? currentIndex : 0;
 
   return (
     <Box sx={{ width: '100%', py: 2 }}>
       <Stepper activeStep={activeStep} orientation="vertical">
-        {ORDER_STATUSES.map((status, index) => {
+        {relevantStatuses.map((status, index) => {
           const isCompleted = index < activeStep;
           const isActive = index === activeStep;
-          const isUpcoming = index > activeStep;
-          const statusData = statusHistory.find(s => s.status === status.value);
+          const statusData = statusHistory?.find(s => s.status === status.value);
 
           return (
             <Step key={status.value} completed={isCompleted} active={isActive}>
@@ -81,7 +63,7 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
                     <Chip
                       label="Current"
                       size="small"
-                      color={getStatusColor(status.value)}
+                      color={getStatusColor(status.value) as any}
                       sx={{ height: 20, fontSize: '0.7rem' }}
                     />
                   )}
@@ -92,21 +74,23 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
                   {status.description}
                 </Typography>
                 {statusData?.timestamp && (
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(statusData.timestamp).toLocaleString()}
-                  </Typography>
-                )}
-                {statusData?.estimatedTime && (
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                    • Estimated: {statusData.estimatedTime}
-                  </Typography>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {new Date(statusData.timestamp).toLocaleString()}
+                    </Typography>
+                    {statusData.confirmed_by_name && (
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        Confirmed by: {statusData.confirmed_by_name}
+                      </Typography>
+                    )}
+                  </Box>
                 )}
               </StepContent>
             </Step>
           );
         })}
       </Stepper>
-      {estimatedDeliveryTime && activeStep < ORDER_STATUSES.length - 1 && (
+      {estimatedDeliveryTime && activeStep < relevantStatuses.length - 1 && (
         <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
           <Typography variant="body2" color="text.secondary">
             <strong>Estimated Delivery:</strong> {estimatedDeliveryTime}
@@ -118,4 +102,3 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
 };
 
 export default OrderTimeline;
-

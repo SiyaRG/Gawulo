@@ -29,6 +29,10 @@ import {
   Tab,
   Switch,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -42,6 +46,7 @@ import {
   Person as PersonIcon,
   BarChart as ChartIcon,
   CloudUpload as UploadIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { 
   useVendorOrders, 
@@ -52,6 +57,7 @@ import {
   useUpdateOrderStatus,
   useCurrentVendor,
   useVendorStats,
+  useVendorReviews,
   useUpdateVendorProfile,
   useUploadVendorProfileImage,
   useUploadProductServiceImage,
@@ -63,11 +69,24 @@ import {
   useUploadVendorImages,
   useUpdateVendorImage,
   useDeleteVendorImage,
+  useRefundRequests,
+  useApproveRefundRequest,
+  useDenyRefundRequest,
 } from '../hooks/useApi';
-import { ProductService, Order, ProductImage, VendorImage } from '../types/index';
+import { useOrderUpdates } from '../hooks/useWebSocket';
+import { ProductService, Order, ProductImage, VendorImage, RefundRequest } from '../types/index';
 import LoadingLogo from '../components/LoadingLogo';
 import AlertMessage from '../components/AlertMessage';
+import ReviewStatistics from '../components/reviews/ReviewStatistics';
+import ReviewsList from '../components/reviews/ReviewsList';
 import ImageCarousel from '../components/ImageCarousel';
+import OrderDetails from '../components/OrderDetails';
+import RevenueTrendChart from '../components/analytics/RevenueTrendChart';
+import ProductPerformanceChart from '../components/analytics/ProductPerformanceChart';
+import StatusDistributionChart from '../components/analytics/StatusDistributionChart';
+import CustomerInsightsCard from '../components/analytics/CustomerInsightsCard';
+import OrderVolumeChart from '../components/analytics/OrderVolumeChart';
+import { getStatusColor, getValidNextStatuses } from '../utils/orderStatus';
 
 interface VendorDashboardProps {
   appState: any;
@@ -85,6 +104,8 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
     description: '',
     current_price: '',
     is_service: false,
+    available_for: 'both' as 'delivery' | 'pickup' | 'both',
+    estimated_preparation_time_minutes: '',
   });
   const [productImage, setProductImage] = useState<File | null>(null);
   const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
@@ -95,10 +116,40 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
   });
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const [orderDetailsDialog, setOrderDetailsDialog] = useState(false);
+  const [orderFilters, setOrderFilters] = useState<{
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+  }>({});
+  const [alertMessage, setAlertMessage] = useState<{ message: string; severity: 'success' | 'error' | 'info' | 'warning'; open: boolean }>({
+    message: '',
+    severity: 'info',
+    open: false,
+  });
 
   // API hooks
   const { data: vendor, isLoading: vendorLoading } = useCurrentVendor();
-  const { data: orders, isLoading: ordersLoading } = useVendorOrders();
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useVendorOrders(orderFilters);
+  const { data: refundRequests = [], isLoading: refundRequestsLoading } = useRefundRequests({ status: 'pending' });
+  const { data: reviews = [], isLoading: reviewsLoading } = useVendorReviews(vendor ? String(vendor.id) : '');
+  
+  // WebSocket for real-time order updates
+  const { isConnected: wsConnected } = useOrderUpdates({
+    userType: 'vendor',
+    enabled: true,
+  });
+  const approveRefundRequest = useApproveRefundRequest();
+  const denyRefundRequest = useDenyRefundRequest();
+  const [denyDialogOpen, setDenyDialogOpen] = useState(false);
+  const [selectedRefundRequest, setSelectedRefundRequest] = useState<RefundRequest | null>(null);
+  const [denialReason, setDenialReason] = useState('');
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Vendor Orders data:', { orders, ordersLoading, ordersError, orderFilters });
+  }, [orders, ordersLoading, ordersError, orderFilters]);
   const { data: products, isLoading: productsLoading } = useMyVendorMenu();
   const { data: stats, isLoading: statsLoading } = useVendorStats();
   const createProduct = useCreateMenuItem();
@@ -127,6 +178,8 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
       description: '',
       current_price: '',
       is_service: false,
+      available_for: 'both',
+      estimated_preparation_time_minutes: '',
     });
     setProductImage(null);
     setProductImagePreview(null);
@@ -140,6 +193,8 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
       description: product.description || '',
       current_price: String(product.current_price),
       is_service: product.is_service || false,
+      available_for: product.available_for || 'both',
+      estimated_preparation_time_minutes: product.estimated_preparation_time_minutes ? String(product.estimated_preparation_time_minutes) : '',
     });
     setProductImage(null);
     setProductImagePreview(null);
@@ -158,12 +213,21 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
       return; // Invalid price, don't save
     }
 
-    const productData = {
+    const productData: any = {
       name: productForm.name,
       description: productForm.description || undefined,
       current_price: price,
       is_service: productForm.is_service || null,
+      available_for: productForm.available_for,
     };
+    
+    // Add estimated_preparation_time_minutes if provided
+    if (productForm.estimated_preparation_time_minutes) {
+      const prepTime = parseInt(productForm.estimated_preparation_time_minutes, 10);
+      if (!isNaN(prepTime) && prepTime > 0) {
+        productData.estimated_preparation_time_minutes = prepTime;
+      }
+    }
 
     try {
       let productId: string;
@@ -348,20 +412,9 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Pending': return 'warning';
-      case 'Confirmed': return 'info';
-      case 'Processing': return 'primary';
-      case 'Shipped': return 'success';
-      case 'Delivered': return 'success';
-      case 'Cancelled': return 'error';
-      case 'Refunded': return 'error';
-      default: return 'default';
-    }
-  };
 
   const formatCurrency = (amount: number | string) => {
+    // Format as South African Rand (ZAR)
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(numAmount)) return 'R0.00';
     return `R${numAmount.toFixed(2)}`;
@@ -493,6 +546,7 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
           <Tab label="Products/Services" />
           <Tab label="Orders" />
           <Tab label="Analytics" />
+          <Tab label="Reviews" />
         </Tabs>
       </Box>
 
@@ -614,141 +668,499 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
 
       {/* Orders Tab */}
       {activeTab === 1 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Recent Orders
-            </Typography>
-            
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Order #</TableCell>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Array.isArray(orders) && orders.length > 0 ? (
-                    orders.slice(0, 10).map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>{order.order_uid.substring(0, 8)}...</TableCell>
-                        <TableCell>{order.customer?.display_name || 'Unknown'}</TableCell>
-                        <TableCell>{formatCurrency(order.total_amount)}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={order.current_status}
-                            color={getStatusColor(order.current_status) as any}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setOrderDialog(true);
-                            }}
-                          >
-                            <ViewIcon />
-                          </IconButton>
+        <Box>
+          {/* Order Filters */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={orderFilters.status || ''}
+                      label="Status"
+                      onChange={(e) => setOrderFilters({ ...orderFilters, status: e.target.value || undefined })}
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      <MenuItem value="Confirmed">Confirmed</MenuItem>
+                      <MenuItem value="Pending">Pending</MenuItem>
+                      <MenuItem value="Processing">Processing</MenuItem>
+                      <MenuItem value="Shipped">Shipped</MenuItem>
+                      <MenuItem value="Delivered">Delivered</MenuItem>
+                      <MenuItem value="Cancelled">Cancelled</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="From Date"
+                    type="date"
+                    value={orderFilters.date_from || ''}
+                    onChange={(e) => setOrderFilters({ ...orderFilters, date_from: e.target.value || undefined })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="To Date"
+                    type="date"
+                    value={orderFilters.date_to || ''}
+                    onChange={(e) => setOrderFilters({ ...orderFilters, date_to: e.target.value || undefined })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search Order UID or Customer"
+                    value={orderFilters.search || ''}
+                    onChange={(e) => setOrderFilters({ ...orderFilters, search: e.target.value || undefined })}
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Orders Table */}
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">
+                  Orders
+                </Typography>
+                <Chip
+                  label={wsConnected ? 'Connected' : 'Disconnected'}
+                  color={wsConnected ? 'success' : 'default'}
+                  size="small"
+                  sx={{ ml: 2 }}
+                />
+              </Box>
+              <TableContainer component={Paper} variant="outlined">
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Order ID</TableCell>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Customer</TableCell>
+                      <TableCell>Total</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Array.isArray(orders) && orders.length > 0 ? (
+                      orders.map((order) => {
+                        const validNextStatuses = getValidNextStatuses(order.current_status as any, 'vendor', order.delivery_type);
+                        return (
+                          <TableRow key={order.id} hover>
+                            <TableCell>{order.order_uid}</TableCell>
+                            <TableCell>
+                              {new Date(order.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>{order.customer_name || 'Unknown'}</TableCell>
+                            <TableCell>{formatCurrency(order.total_amount)}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={order.current_status}
+                                color={getStatusColor(order.current_status as any)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box display="flex" gap={1}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setOrderDetailsDialog(true);
+                                  }}
+                                >
+                                  Details
+                                </Button>
+                                {validNextStatuses.length > 0 && (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setOrderDialog(true);
+                                    }}
+                                  >
+                                    Update Status
+                                  </Button>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">
+                          {ordersLoading ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            'No orders found'
+                          )}
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        {ordersLoading ? (
-                          <CircularProgress size={20} />
-                        ) : (
-                          'No orders found'
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+
+          {/* Refund Requests Section */}
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Refund Requests
+              </Typography>
+              {refundRequestsLoading ? (
+                <Box display="flex" justifyContent="center" py={3}>
+                  <CircularProgress size={20} />
+                </Box>
+              ) : refundRequests.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Order ID</TableCell>
+                        <TableCell>Customer</TableCell>
+                        <TableCell>Reason</TableCell>
+                        <TableCell>Requested Date</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {refundRequests.map((refundRequest) => {
+                        // Only show action buttons if status is pending
+                        const isPending = refundRequest.status === 'pending';
+                        return (
+                          <TableRow key={refundRequest.id} hover>
+                            <TableCell>{refundRequest.order_uid}</TableCell>
+                            <TableCell>{refundRequest.requested_by_name}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {refundRequest.reason}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(refundRequest.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {isPending ? (
+                                <Box display="flex" gap={1}>
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="success"
+                                    onClick={() => {
+                                      approveRefundRequest.mutate(
+                                        { refundRequestId: String(refundRequest.id) },
+                                        {
+                                          onSuccess: () => {
+                                            setAlertMessage({
+                                              message: 'Refund request approved successfully',
+                                              severity: 'success',
+                                              open: true,
+                                            });
+                                          },
+                                          onError: (error: any) => {
+                                            setAlertMessage({
+                                              message: error?.message || 'Failed to approve refund request',
+                                              severity: 'error',
+                                              open: true,
+                                            });
+                                          },
+                                        }
+                                      );
+                                    }}
+                                    disabled={approveRefundRequest.isLoading}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => {
+                                      setSelectedRefundRequest(refundRequest);
+                                      setDenyDialogOpen(true);
+                                    }}
+                                    disabled={denyRefundRequest.isLoading}
+                                  >
+                                    Deny
+                                  </Button>
+                                </Box>
+                              ) : (
+                                <Chip
+                                  label={refundRequest.status.charAt(0).toUpperCase() + refundRequest.status.slice(1)}
+                                  color={refundRequest.status === 'approved' ? 'success' : 'default'}
+                                  size="small"
+                                />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box display="flex" justifyContent="center" py={3}>
+                  <Typography variant="body2" color="text.secondary">
+                    No pending refund requests
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Deny Refund Request Dialog */}
+          <Dialog open={denyDialogOpen} onClose={() => setDenyDialogOpen(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Deny Refund Request</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Please provide a reason for denying this refund request.
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Denial Reason"
+                value={denialReason}
+                onChange={(e) => setDenialReason(e.target.value)}
+                placeholder="Please explain why this refund request is being denied..."
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => {
+                setDenyDialogOpen(false);
+                setDenialReason('');
+                setSelectedRefundRequest(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedRefundRequest) {
+                    denyRefundRequest.mutate(
+                      { refundRequestId: String(selectedRefundRequest.id), denialReason },
+                      {
+                        onSuccess: () => {
+                          setDenyDialogOpen(false);
+                          setDenialReason('');
+                          setSelectedRefundRequest(null);
+                          setAlertMessage({
+                            message: 'Refund request denied successfully',
+                            severity: 'success',
+                            open: true,
+                          });
+                        },
+                        onError: (error: any) => {
+                          setAlertMessage({
+                            message: error?.message || 'Failed to deny refund request',
+                            severity: 'error',
+                            open: true,
+                          });
+                        },
+                      }
+                    );
+                  }
+                }}
+                variant="contained"
+                color="error"
+                disabled={denyRefundRequest.isLoading}
+              >
+                {denyRefundRequest.isLoading ? 'Denying...' : 'Deny Request'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Order Details Dialog */}
+          {selectedOrder && (
+            <OrderDetails
+              order={selectedOrder}
+              userType="vendor"
+              open={orderDetailsDialog}
+              onClose={() => {
+                setOrderDetailsDialog(false);
+                setSelectedOrder(null);
+              }}
+              onStatusUpdate={(orderId, status) => {
+                updateOrderStatus.mutate(
+                  { orderId: String(orderId), status },
+                  {
+                    onSuccess: () => {
+                      setAlertMessage({ message: 'Order status updated successfully', severity: 'success', open: true });
+                      setOrderDetailsDialog(false);
+                      setSelectedOrder(null);
+                    },
+                    onError: (error: unknown) => {
+                      const errorMessage = error instanceof Error ? error.message : 'Failed to update order status';
+                      setAlertMessage({ message: errorMessage, severity: 'error', open: true });
+                    },
+                  }
+                );
+              }}
+              isUpdatingStatus={updateOrderStatus.isLoading}
+            />
+          )}
+        </Box>
       )}
 
       {/* Analytics Tab */}
-      {activeTab === 2 && stats && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Revenue Overview
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="textSecondary">Today</Typography>
-                  <Typography variant="h5">{formatCurrency(stats.today_revenue)}</Typography>
-                </Box>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="textSecondary">This Week</Typography>
-                  <Typography variant="h5">{formatCurrency(stats.week_revenue)}</Typography>
-                </Box>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="textSecondary">This Month</Typography>
-                  <Typography variant="h5">{formatCurrency(stats.month_revenue)}</Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Order Status Breakdown
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  {Object.entries(stats.status_breakdown).map(([status, count]) => (
-                    <Box key={status} display="flex" justifyContent="space-between" sx={{ mb: 1 }}>
-                      <Typography variant="body2">{status}</Typography>
-                      <Typography variant="body2" fontWeight="bold">{count}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          {stats.popular_products && stats.popular_products.length > 0 && (
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Popular Products
-                  </Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Product</TableCell>
-                          <TableCell align="right">Orders</TableCell>
-                          <TableCell align="right">Total Quantity</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {stats.popular_products.map((product: any, index: number) => (
-                          <TableRow key={index}>
-                            <TableCell>{product.product_service__name}</TableCell>
-                            <TableCell align="right">{product.order_count}</TableCell>
-                            <TableCell align="right">{product.total_quantity}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
+      {activeTab === 2 && (
+        <Box>
+          {statsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+              <CircularProgress />
+            </Box>
+          ) : stats ? (
+            <Grid container spacing={3}>
+              {/* Revenue Trend Chart - Full Width */}
+              {stats.revenue_trends_30d && stats.revenue_trends_30d.length > 0 && (
+                <Grid item xs={12}>
+                  <RevenueTrendChart data={stats.revenue_trends_30d} />
+                </Grid>
+              )}
+
+              {/* Product Performance and Status Distribution - Two Columns */}
+              <Grid item xs={12} md={6}>
+                {stats.product_revenue && stats.product_revenue.length > 0 ? (
+                  <ProductPerformanceChart
+                    data={stats.product_revenue}
+                    onProductClick={(productId) => {
+                      // Optional: Handle product click to view details
+                      console.log('Product clicked:', productId);
+                    }}
+                  />
+                ) : (
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Top Products by Revenue
+                      </Typography>
+                      <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No product revenue data available
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                )}
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                {stats.status_breakdown && Object.keys(stats.status_breakdown).length > 0 ? (
+                  <StatusDistributionChart data={stats.status_breakdown} />
+                ) : (
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Order Status Distribution
+                      </Typography>
+                      <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No order status data available
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                )}
+              </Grid>
+
+              {/* Customer Insights - Full Width */}
+              {stats.customer_insights && (
+                <Grid item xs={12}>
+                  <CustomerInsightsCard data={stats.customer_insights} />
+                </Grid>
+              )}
+
+              {/* Order Volume Chart - Full Width */}
+              {stats.order_volume_trends && stats.order_volume_trends.length > 0 && (
+                <Grid item xs={12}>
+                  <OrderVolumeChart data={stats.order_volume_trends} />
+                </Grid>
+              )}
+
+              {/* Revenue Summary Cards */}
+              <Grid item xs={12} md={4}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      Today's Revenue
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {formatCurrency(stats.today_revenue)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      This Week's Revenue
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {formatCurrency(stats.week_revenue)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      This Month's Revenue
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {formatCurrency(stats.month_revenue)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
             </Grid>
+          ) : (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                Unable to load analytics data. Please try refreshing the page.
+              </Typography>
+            </Box>
           )}
-        </Grid>
+        </Box>
+      )}
+
+      {/* Reviews Tab */}
+      {activeTab === 3 && (
+        <Box>
+          <ReviewStatistics reviews={reviews} />
+          <ReviewsList
+            reviews={reviews}
+            isLoading={reviewsLoading}
+            onOrderClick={(orderId) => {
+              // Find the order and open order details
+              const order = orders?.find((o: Order) => o.id === orderId);
+              if (order) {
+                setSelectedOrder(order);
+                setOrderDialog(true);
+              }
+            }}
+          />
+        </Box>
       )}
 
       {/* Product/Service Dialog */}
@@ -793,6 +1205,28 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
                 />
               }
               label="This is a service"
+            />
+            <FormControl fullWidth sx={{ mb: 2, mt: 2 }}>
+              <InputLabel>Available For</InputLabel>
+              <Select
+                value={productForm.available_for}
+                label="Available For"
+                onChange={(e) => setProductForm({ ...productForm, available_for: e.target.value as 'delivery' | 'pickup' | 'both' })}
+              >
+                <MenuItem value="both">Both Delivery and Pickup</MenuItem>
+                <MenuItem value="delivery">Delivery Only</MenuItem>
+                <MenuItem value="pickup">Pickup Only</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Estimated Preparation Time (minutes)"
+              type="number"
+              value={productForm.estimated_preparation_time_minutes}
+              onChange={(e) => setProductForm({ ...productForm, estimated_preparation_time_minutes: e.target.value })}
+              sx={{ mb: 2 }}
+              inputProps={{ min: 1 }}
+              helperText="Optional: Used as default estimated ready time for orders"
             />
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -884,84 +1318,49 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Order Details Dialog */}
-      <Dialog open={orderDialog} onClose={() => setOrderDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Order Details</DialogTitle>
+      {/* Order Status Update Dialog */}
+      <Dialog open={orderDialog} onClose={() => setOrderDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Order Status</DialogTitle>
         <DialogContent>
           {selectedOrder && (
             <Box sx={{ pt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2">Order ID</Typography>
-                  <Typography variant="body1">{selectedOrder.order_uid}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2">Status</Typography>
-                  <Chip
-                    label={selectedOrder.current_status}
-                    color={getStatusColor(selectedOrder.current_status) as any}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2">Customer</Typography>
-                  <Typography variant="body1">
-                    {selectedOrder.customer?.display_name || 'Unknown'}
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Current Status
+              </Typography>
+              <Chip
+                label={selectedOrder.current_status}
+                color={getStatusColor(selectedOrder.current_status as any)}
+                sx={{ mb: 3, fontWeight: 600 }}
+              />
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Select New Status
+              </Typography>
+              <Box display="flex" gap={1} flexWrap="wrap" mt={2}>
+                {getValidNextStatuses(selectedOrder.current_status as any, 'vendor', selectedOrder.delivery_type).map((status) => (
+                  <Button
+                    key={status}
+                    variant="contained"
+                    color="primary"
+                    onClick={() => {
+                      handleUpdateOrderStatus(selectedOrder.id, status);
+                      setOrderDialog(false);
+                    }}
+                    disabled={updateOrderStatus.isLoading}
+                  >
+                    {updateOrderStatus.isLoading ? 'Updating...' : status}
+                  </Button>
+                ))}
+                {getValidNextStatuses(selectedOrder.current_status as any, 'vendor', selectedOrder.delivery_type).length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    No valid status transitions available. This order is in a final state.
                   </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2">Total Amount</Typography>
-                  <Typography variant="body1">{formatCurrency(selectedOrder.total_amount)}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Order Items
-                  </Typography>
-                  {selectedOrder.line_items && selectedOrder.line_items.length > 0 ? (
-                    <TableContainer component={Paper}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Item</TableCell>
-                            <TableCell>Quantity</TableCell>
-                            <TableCell>Price</TableCell>
-                            <TableCell>Total</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedOrder.line_items.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>{item.product_service?.name || 'Unknown'}</TableCell>
-                              <TableCell>{item.quantity}</TableCell>
-                              <TableCell>{formatCurrency(item.unit_price_snapshot)}</TableCell>
-                              <TableCell>{formatCurrency(item.line_total)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">No items found</Typography>
-                  )}
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Update Status
-                  </Typography>
-                  <Box display="flex" gap={1} flexWrap="wrap">
-                    {['Processing', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (
-                      <Button
-                        key={status}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleUpdateOrderStatus(selectedOrder.id, status)}
-                        disabled={updateOrderStatus.isLoading || selectedOrder.current_status === status}
-                      >
-                        {status}
-                      </Button>
-                    ))}
-                  </Box>
-                </Grid>
-              </Grid>
+                )}
+              </Box>
+              {updateOrderStatus.isError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {updateOrderStatus.error instanceof Error ? updateOrderStatus.error.message : 'Failed to update order status'}
+                </Alert>
+              )}
             </Box>
           )}
         </DialogContent>
@@ -1141,6 +1540,14 @@ const VendorDashboard: React.FC<VendorDashboardProps> = ({ appState }) => {
           severity="error"
         />
       )}
+
+      {/* Alert Message */}
+      <AlertMessage
+        message={alertMessage.message}
+        severity={alertMessage.severity}
+        open={alertMessage.open}
+        onClose={() => setAlertMessage({ ...alertMessage, open: false })}
+      />
     </Container>
   );
 };

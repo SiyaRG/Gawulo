@@ -1,7 +1,7 @@
 // React Query hooks for API integration
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../services/api';
-import { Vendor, ProductService, Order, Review, User, AuthResponse, Country, Language, ProfileUpdateForm, VendorStats, ProductImage, VendorImage, CustomerAddress, FavoriteVendor, LoginResponse } from '../types/index';
+import { Vendor, ProductService, Order, Review, User, AuthResponse, Country, Language, ProfileUpdateForm, VendorStats, ProductImage, VendorImage, CustomerAddress, FavoriteVendor, FavoriteProductService, LoginResponse, OrderStats, RefundRequest } from '../types/index';
 
 // Authentication hooks
 export const useLogin = () => {
@@ -263,10 +263,16 @@ export const useMenuItems = (params?: { vendor?: string; search?: string }) => {
   );
 };
 
-export const useVendorOrders = () => {
+export const useVendorOrders = (params?: {
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  search?: string;
+  ordering?: string;
+}) => {
   return useQuery(
-    ['vendor-orders'],
-    () => api.getVendorOrders(),
+    ['vendor-orders', params],
+    () => api.getVendorOrders(params),
     {
       staleTime: 30 * 1000, // 30 seconds
     }
@@ -279,7 +285,9 @@ export const useVendorReviews = (vendorId: string) => {
     () => api.getVendorReviews(vendorId),
     {
       enabled: !!vendorId,
-      staleTime: 60 * 1000, // 1 minute
+      staleTime: 0, // Always refetch when invalidated
+      cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+      refetchOnWindowFocus: true,
     }
   );
 };
@@ -464,10 +472,16 @@ export const useOrder = (orderId: string) => {
   );
 };
 
-export const useMyOrders = () => {
+export const useMyOrders = (params?: {
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  search?: string;
+  ordering?: string;
+}) => {
   return useQuery(
-    ['my-orders'],
-    () => api.getMyOrders(),
+    ['my-orders', params],
+    () => api.getMyOrders(params),
     {
       staleTime: 30 * 1000, // 30 seconds
     }
@@ -481,10 +495,12 @@ export const useCreateOrder = () => {
     (orderData: any) => api.createOrder(orderData),
     {
       onSuccess: () => {
+        // Invalidate all order-related queries
         queryClient.invalidateQueries(['orders']);
-        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['my-orders']); // This will invalidate all my-orders queries regardless of params
         queryClient.invalidateQueries(['vendor-orders']);
         queryClient.invalidateQueries(['vendor-stats']);
+        queryClient.invalidateQueries(['order-stats']);
       },
     }
   );
@@ -520,6 +536,105 @@ export const useUpdateOrderStatus = () => {
         queryClient.invalidateQueries(['my-orders']);
         queryClient.invalidateQueries(['vendor-orders']);
         queryClient.invalidateQueries(['vendor-stats']);
+        queryClient.invalidateQueries(['order-stats']);
+      },
+    }
+  );
+};
+
+export const useUpdateOrderEstimatedTime = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ orderId, estimatedTime }: { orderId: string; estimatedTime: string }) =>
+      api.updateOrderEstimatedTime(orderId, estimatedTime),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['orders']);
+        queryClient.invalidateQueries(['order']);
+        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['vendor-orders']);
+        queryClient.invalidateQueries(['vendor-stats']);
+        queryClient.invalidateQueries(['order-stats']);
+      },
+    }
+  );
+};
+
+export const useCancelOrder = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ orderId, reason }: { orderId: string; reason?: string }) =>
+      api.cancelOrder(orderId, reason),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['orders']);
+        queryClient.invalidateQueries(['order']);
+        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['vendor-orders']);
+        queryClient.invalidateQueries(['order-stats']);
+      },
+    }
+  );
+};
+
+export const useRequestRefund = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ orderId, reason }: { orderId: string; reason: string }) => api.requestRefund(orderId, reason),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['refund-requests']);
+        queryClient.invalidateQueries(['orders']);
+        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['vendor-orders']);
+      },
+    }
+  );
+};
+
+export const useRefundRequests = (params?: { status?: string; order?: string }) => {
+  return useQuery(
+    ['refund-requests', params],
+    () => api.getRefundRequests(params),
+    {
+      staleTime: 30000, // 30 seconds
+    }
+  );
+};
+
+export const useApproveRefundRequest = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ refundRequestId }: { refundRequestId: string }) => api.approveRefundRequest(refundRequestId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['refund-requests']);
+        queryClient.invalidateQueries(['orders']);
+        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['vendor-orders']);
+        queryClient.invalidateQueries(['vendor-stats']);
+        queryClient.invalidateQueries(['order-stats']);
+      },
+    }
+  );
+};
+
+export const useDenyRefundRequest = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ refundRequestId, denialReason }: { refundRequestId: string; denialReason?: string }) => 
+      api.denyRefundRequest(refundRequestId, denialReason),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['refund-requests']);
+        queryClient.invalidateQueries(['orders']);
+        queryClient.invalidateQueries(['my-orders']);
+        queryClient.invalidateQueries(['vendor-orders']);
       },
     }
   );
@@ -540,9 +655,9 @@ export const useDeleteOrder = () => {
   );
 };
 
-export const useOrderStats = (vendorId?: string) => {
+export const useOrderStats = () => {
   return useQuery(
-    ['order-stats', vendorId],
+    ['order-stats'],
     () => api.getOrderStats(),
     {
       staleTime: 60 * 1000, // 1 minute
@@ -573,6 +688,78 @@ export const useSearchVendors = (searchQuery: string) => {
 };
 
 // Review hooks
+export const useMyReviews = () => {
+  return useQuery(
+    ['my-reviews'],
+    () => {
+      console.log('Fetching my reviews...');
+      return api.getMyReviews();
+    },
+    {
+      staleTime: 0, // Always refetch when invalidated
+      cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+      refetchOnWindowFocus: true,
+      onSuccess: (data) => {
+        console.log('My reviews fetched successfully:', data);
+      },
+      onError: (error) => {
+        console.error('Error fetching my reviews:', error);
+      },
+    }
+  );
+};
+
+export const useCreateOrderReview = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ orderId, reviewData }: { orderId: string; reviewData: { rating: number; comment: string } }) =>
+      api.createOrderReview(orderId, reviewData),
+    {
+      onSuccess: () => {
+        // Invalidate and refetch immediately
+        queryClient.invalidateQueries(['my-reviews'], { refetchActive: true });
+        queryClient.invalidateQueries(['my-orders'], { refetchActive: true });
+        queryClient.invalidateQueries(['orders'], { refetchActive: true });
+      },
+    }
+  );
+};
+
+export const useUpdateReview = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ reviewId, reviewData }: { reviewId: string; reviewData: { rating: number; comment: string } }) =>
+      api.updateReview(reviewId, reviewData),
+    {
+      onSuccess: () => {
+        // Invalidate and refetch immediately
+        queryClient.invalidateQueries(['my-reviews'], { refetchActive: true });
+        queryClient.invalidateQueries(['my-orders'], { refetchActive: true });
+        queryClient.invalidateQueries(['orders'], { refetchActive: true });
+      },
+    }
+  );
+};
+
+export const useDeleteReview = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    (reviewId: string) => api.deleteReview(reviewId),
+    {
+      onSuccess: () => {
+        // Invalidate and refetch immediately
+        queryClient.invalidateQueries(['my-reviews'], { refetchActive: true });
+        queryClient.invalidateQueries(['my-orders'], { refetchActive: true });
+        queryClient.invalidateQueries(['orders'], { refetchActive: true });
+      },
+    }
+  );
+};
+
+// Legacy hook - kept for backward compatibility
 export const useCreateReview = () => {
   const queryClient = useQueryClient();
   
@@ -637,6 +824,8 @@ export const useCustomerAddresses = () => {
     () => api.getCustomerAddresses(),
     {
       staleTime: 60 * 1000, // 1 minute
+      retry: 2, // Retry failed requests
+      refetchOnWindowFocus: true, // Refetch when window regains focus
     }
   );
 };
@@ -728,6 +917,45 @@ export const useRemoveFavoriteVendor = () => {
       onSuccess: () => {
         queryClient.invalidateQueries(['favorite-vendors']);
         queryClient.invalidateQueries(['vendors']);
+      },
+    }
+  );
+};
+
+// Favorite Products hooks
+export const useFavoriteProducts = () => {
+  return useQuery(
+    ['favorite-products'],
+    () => api.getFavoriteProducts(),
+    {
+      staleTime: 60 * 1000, // 1 minute
+    }
+  );
+};
+
+export const useAddFavoriteProduct = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    (productServiceId: string) => api.addFavoriteProduct(productServiceId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['favorite-products']);
+        queryClient.invalidateQueries(['product-services']);
+      },
+    }
+  );
+};
+
+export const useRemoveFavoriteProduct = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    (productServiceId: string) => api.removeFavoriteProduct(productServiceId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['favorite-products']);
+        queryClient.invalidateQueries(['product-services']);
       },
     }
   );
