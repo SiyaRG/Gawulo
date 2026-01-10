@@ -36,15 +36,23 @@ class OrderDetailView(generics.RetrieveAPIView):
         user = self.request.user
         if user.is_staff:
             return Order.objects.all()
-        elif hasattr(user, 'vendor_profile'):
-            return Order.objects.filter(vendor=user.vendor_profile)
         else:
-            # Get customer profile for user
+            # Check if user is a vendor
             try:
-                customer = Customer.objects.get(user=user)
-                return Order.objects.filter(customer=customer)
-            except Customer.DoesNotExist:
-                return Order.objects.none()
+                vendor = user.vendor_profile
+                return Order.objects.filter(vendor=vendor)
+            except:
+                from vendors.models import Vendor
+                try:
+                    vendor = Vendor.objects.get(user=user)
+                    return Order.objects.filter(vendor=vendor)
+                except Vendor.DoesNotExist:
+                    # Not a vendor, check if customer
+                    try:
+                        customer = Customer.objects.get(user=user)
+                        return Order.objects.filter(customer=customer)
+                    except Customer.DoesNotExist:
+                        return Order.objects.none()
 
 
 class OrderCreateView(generics.CreateAPIView):
@@ -83,14 +91,23 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
         user = self.request.user
         if user.is_staff:
             return Order.objects.all()
-        elif hasattr(user, 'vendor_profile'):
-            return Order.objects.filter(vendor=user.vendor_profile)
         else:
+            # Check if user is a vendor
             try:
-                customer = Customer.objects.get(user=user)
-                return Order.objects.filter(customer=customer)
-            except Customer.DoesNotExist:
-                return Order.objects.none()
+                vendor = user.vendor_profile
+                return Order.objects.filter(vendor=vendor)
+            except:
+                from vendors.models import Vendor
+                try:
+                    vendor = Vendor.objects.get(user=user)
+                    return Order.objects.filter(vendor=vendor)
+                except Vendor.DoesNotExist:
+                    # Not a vendor, check if customer
+                    try:
+                        customer = Customer.objects.get(user=user)
+                        return Order.objects.filter(customer=customer)
+                    except Customer.DoesNotExist:
+                        return Order.objects.none()
     
     def perform_update(self, serializer):
         """Update order status and create history entry."""
@@ -128,9 +145,16 @@ class VendorOrdersView(generics.ListAPIView):
     ordering_fields = ['created_at', 'total_amount']
     
     def get_queryset(self):
-        if hasattr(self.request.user, 'vendor_profile'):
-            return Order.objects.filter(vendor=self.request.user.vendor_profile)
-        return Order.objects.none()
+        try:
+            vendor = self.request.user.vendor_profile
+            return Order.objects.filter(vendor=vendor)
+        except:
+            from vendors.models import Vendor
+            try:
+                vendor = Vendor.objects.get(user=self.request.user)
+                return Order.objects.filter(vendor=vendor)
+            except Vendor.DoesNotExist:
+                return Order.objects.none()
 
 
 class ReviewCreateView(generics.CreateAPIView):

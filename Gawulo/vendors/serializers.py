@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Vendor, ProductService
+from .models import Vendor, ProductService, ProductImage, VendorImage
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,35 +12,111 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    """Serializer for ProductImage model."""
+    
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'product_service', 'image', 'is_preview', 'display_order', 'created_at']
+        read_only_fields = ['id', 'product_service', 'created_at']
+    
+    def validate(self, data):
+        """Validate preview image selection."""
+        # Validation is handled in the view's perform_update method
+        return data
+
+
+class VendorImageSerializer(serializers.ModelSerializer):
+    """Serializer for VendorImage model."""
+    
+    class Meta:
+        model = VendorImage
+        fields = ['id', 'vendor', 'image', 'is_preview', 'display_order', 'created_at']
+        read_only_fields = ['id', 'vendor', 'created_at']
+    
+    def validate(self, data):
+        """Validate preview image selection."""
+        # Validation is handled in the view's perform_update method
+        return data
+
+
 class ProductServiceSerializer(serializers.ModelSerializer):
     """Serializer for ProductService model."""
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    images = ProductImageSerializer(many=True, read_only=True)
+    preview_image = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductService
         fields = [
             'id', 'vendor', 'vendor_name', 'name', 'description',
-            'current_price', 'is_service', 'created_at'
+            'current_price', 'image', 'images', 'preview_image', 'is_service', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'vendor', 'created_at']
+    
+    def get_preview_image(self, obj):
+        """Return the preview image URL or first image if no preview set."""
+        preview = obj.images.filter(is_preview=True).first()
+        if preview:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(preview.image.url)
+            return preview.image.url
+        # Fallback to first image or legacy image field
+        first_image = obj.images.first()
+        if first_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 
 class VendorSerializer(serializers.ModelSerializer):
     """Serializer for Vendor model."""
     user = UserSerializer(read_only=True)
-    products_services = ProductServiceSerializer(many=True, read_only=True, source='products_services')
+    products_services = ProductServiceSerializer(many=True, read_only=True)
+    images = VendorImageSerializer(many=True, read_only=True)
+    preview_image = serializers.SerializerMethodField()
     
     class Meta:
         model = Vendor
         fields = [
             'id', 'user', 'name', 'category', 'profile_description',
-            'is_verified', 'average_rating', 'review_count',
+            'profile_image', 'images', 'preview_image', 'is_verified', 'average_rating', 'review_count',
             'created_at', 'updated_at', 'products_services'
         ]
         read_only_fields = [
-            'id', 'average_rating', 'review_count',
+            'id', 'user', 'is_verified', 'average_rating', 'review_count',
             'created_at', 'updated_at', 'products_services'
         ]
+    
+    def get_preview_image(self, obj):
+        """Return the preview image URL or first image if no preview set."""
+        preview = obj.images.filter(is_preview=True).first()
+        if preview:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(preview.image.url)
+            return preview.image.url
+        # Fallback to first image or legacy profile_image field
+        first_image = obj.images.first()
+        if first_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+        if obj.profile_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_image.url)
+            return obj.profile_image.url
+        return None
 
 
 class VendorRegistrationSerializer(serializers.ModelSerializer):

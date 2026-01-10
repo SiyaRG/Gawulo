@@ -22,6 +22,7 @@ class Vendor(models.Model):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=100)
     profile_description = models.TextField(null=True, blank=True)
+    profile_image = models.ImageField(upload_to='vendor_profiles/', null=True, blank=True)
     is_verified = models.BooleanField(default=False)
     average_rating = models.DecimalField(
         max_digits=2, 
@@ -81,6 +82,7 @@ class ProductService(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     current_price = models.DecimalField(max_digits=10, decimal_places=2)
+    image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     is_service = models.BooleanField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -118,6 +120,90 @@ class ProductService(models.Model):
             original = ProductService.objects.get(pk=self.pk)
             self.created_at = original.created_at
         super().save(*args, **kwargs)
+
+
+class ProductImage(models.Model):
+    """
+    Image model for product/service offerings.
+    
+    Supports multiple images per product with preview selection and ordering.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    product_service = models.ForeignKey(ProductService, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='product_images/')
+    is_preview = models.BooleanField(default=False)
+    display_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'Product Image'
+        verbose_name_plural = 'Product Images'
+        ordering = ['display_order', 'created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['product_service', 'is_preview'],
+                condition=models.Q(is_preview=True),
+                name='unique_preview_per_product'
+            )
+        ]
+    
+    def __str__(self):
+        preview_text = " (Preview)" if self.is_preview else ""
+        return f"{self.product_service.name} - Image {self.id}{preview_text}"
+    
+    def set_as_preview(self):
+        """Set this image as preview and unset others for the same product."""
+        # Unset all other preview images for this product
+        ProductImage.objects.filter(
+            product_service=self.product_service,
+            is_preview=True
+        ).exclude(id=self.id).update(is_preview=False)
+        # Set this as preview
+        self.is_preview = True
+        self.save()
+
+
+class VendorImage(models.Model):
+    """
+    Image model for vendor profiles.
+    
+    Supports multiple images per vendor with preview selection and ordering.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='vendor_profiles/')
+    is_preview = models.BooleanField(default=False)
+    display_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'Vendor Image'
+        verbose_name_plural = 'Vendor Images'
+        ordering = ['display_order', 'created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['vendor', 'is_preview'],
+                condition=models.Q(is_preview=True),
+                name='unique_preview_per_vendor'
+            )
+        ]
+    
+    def __str__(self):
+        preview_text = " (Preview)" if self.is_preview else ""
+        return f"{self.vendor.name} - Image {self.id}{preview_text}"
+    
+    def set_as_preview(self):
+        """Set this image as preview and unset others for the same vendor."""
+        # Unset all other preview images for this vendor
+        VendorImage.objects.filter(
+            vendor=self.vendor,
+            is_preview=True
+        ).exclude(id=self.id).update(is_preview=False)
+        # Set this as preview
+        self.is_preview = True
+        self.save()
 
 
 class VendorDocument(models.Model):

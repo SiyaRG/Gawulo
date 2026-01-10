@@ -7,9 +7,14 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from django.contrib.auth.models import User
-from .serializers import UserSerializer, UserRegistrationSerializer, LoginSerializer, OTPVerificationSerializer, ProfileUpdateSerializer
+from .serializers import (
+    UserSerializer, UserRegistrationSerializer, LoginSerializer,
+    OTPVerificationSerializer, ProfileUpdateSerializer,
+    AddressSerializer, FavoriteVendorSerializer, FavoriteProductServiceSerializer
+)
 from .utils import generate_otp_for_user, send_otp_email
-from .models import OTPVerification, UserProfile, OAuthAccount
+from .models import OTPVerification, UserProfile, OAuthAccount, Address, FavoriteVendor, FavoriteProductService, Customer
+from rest_framework import generics
 
 
 class LoginView(APIView):
@@ -711,4 +716,222 @@ class ProfilePictureUploadView(APIView):
             return Response(
                 {'error': f'Failed to delete profile picture: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CustomerAddressListView(generics.ListCreateAPIView):
+    """List and create customer addresses."""
+    serializer_class = AddressSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return addresses for the authenticated user."""
+        return Address.objects.filter(user=self.request.user).order_by('-is_default', '-created_at')
+    
+    def perform_create(self, serializer):
+        """Create address for the authenticated user."""
+        address = serializer.save(user=self.request.user)
+        # If this is set as default, unset others
+        if address.is_default:
+            Address.objects.filter(
+                user=self.request.user,
+                is_default=True
+            ).exclude(id=address.id).update(is_default=False)
+        return address
+
+
+class CustomerAddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a customer address."""
+    serializer_class = AddressSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'
+    
+    def get_queryset(self):
+        """Return addresses for the authenticated user."""
+        return Address.objects.filter(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        """Update address, handling default address logic."""
+        address = serializer.save()
+        # If this is set as default, unset others
+        if address.is_default:
+            Address.objects.filter(
+                user=self.request.user,
+                is_default=True
+            ).exclude(id=address.id).update(is_default=False)
+        return address
+
+
+class SetDefaultAddressView(APIView):
+    """Set an address as the default delivery address."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, pk):
+        """Set address as default."""
+        try:
+            address = Address.objects.get(pk=pk, user=request.user)
+        except Address.DoesNotExist:
+            return Response(
+                {'error': 'Address not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Unset all other default addresses
+        Address.objects.filter(user=request.user, is_default=True).exclude(id=address.id).update(is_default=False)
+        
+        # Set this as default
+        address.is_default = True
+        address.save()
+        
+        serializer = AddressSerializer(address, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class FavoriteVendorListView(generics.ListCreateAPIView):
+    """List and create favorite vendors."""
+    serializer_class = FavoriteVendorSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return favorite vendors for the authenticated customer."""
+        try:
+            customer = self.request.user.customer_profile
+        except Customer.DoesNotExist:
+            return FavoriteVendor.objects.none()
+        
+        return FavoriteVendor.objects.filter(customer=customer).select_related('vendor').order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Create favorite vendor for the authenticated customer."""
+        try:
+            customer = self.request.user.customer_profile
+        except Customer.DoesNotExist:
+            raise ValidationError("User does not have a customer profile.")
+        
+        vendor_id = self.request.data.get('vendor_id')
+        if not vendor_id:
+            raise ValidationError("vendor_id is required.")
+        
+        try:
+            from vendors.models import Vendor
+            vendor = Vendor.objects.get(pk=vendor_id)
+        except Vendor.DoesNotExist:
+            raise ValidationError("Vendor not found.")
+        
+        # Check if already favorited
+        if FavoriteVendor.objects.filter(customer=customer, vendor=vendor).exists():
+            raise ValidationError("Vendor is already in favorites.")
+        
+        return serializer.save(customer=customer, vendor=vendor)
+
+
+class FavoriteVendorDeleteView(APIView):
+    """Remove a vendor from favorites."""
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, vendor_id):
+        """Remove favorite vendor."""
+        try:
+            customer = request.user.customer_profile
+        except Customer.DoesNotExist:
+            return Response(
+                {'error': 'User does not have a customer profile.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            from vendors.models import Vendor
+            vendor = Vendor.objects.get(pk=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response(
+                {'error': 'Vendor not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            favorite = FavoriteVendor.objects.get(customer=customer, vendor=vendor)
+            favorite.delete()
+            return Response(
+                {'message': 'Vendor removed from favorites.'},
+                status=status.HTTP_200_OK
+            )
+        except FavoriteVendor.DoesNotExist:
+            return Response(
+                {'error': 'Vendor is not in favorites.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class FavoriteProductServiceListView(generics.ListCreateAPIView):
+    """List and create favorite products/services."""
+    serializer_class = FavoriteProductServiceSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return favorite products/services for the authenticated customer."""
+        try:
+            customer = self.request.user.customer_profile
+        except Customer.DoesNotExist:
+            return FavoriteProductService.objects.none()
+        
+        return FavoriteProductService.objects.filter(customer=customer).select_related('product_service', 'product_service__vendor').order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Create favorite product/service for the authenticated customer."""
+        try:
+            customer = self.request.user.customer_profile
+        except Customer.DoesNotExist:
+            raise ValidationError("User does not have a customer profile.")
+        
+        product_service_id = self.request.data.get('product_service_id')
+        if not product_service_id:
+            raise ValidationError("product_service_id is required.")
+        
+        try:
+            from vendors.models import ProductService
+            product_service = ProductService.objects.get(pk=product_service_id, deleted_at__isnull=True)
+        except ProductService.DoesNotExist:
+            raise ValidationError("Product/Service not found.")
+        
+        # Check if already favorited
+        if FavoriteProductService.objects.filter(customer=customer, product_service=product_service).exists():
+            raise ValidationError("Product/Service is already in favorites.")
+        
+        return serializer.save(customer=customer, product_service=product_service)
+
+
+class FavoriteProductServiceDeleteView(APIView):
+    """Remove a product/service from favorites."""
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, product_service_id):
+        """Remove favorite product/service."""
+        try:
+            customer = request.user.customer_profile
+        except Customer.DoesNotExist:
+            return Response(
+                {'error': 'User does not have a customer profile.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            from vendors.models import ProductService
+            product_service = ProductService.objects.get(pk=product_service_id, deleted_at__isnull=True)
+        except ProductService.DoesNotExist:
+            return Response(
+                {'error': 'Product/Service not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            favorite = FavoriteProductService.objects.get(customer=customer, product_service=product_service)
+            favorite.delete()
+            return Response(
+                {'message': 'Product/Service removed from favorites.'},
+                status=status.HTTP_200_OK
+            )
+        except FavoriteProductService.DoesNotExist:
+            return Response(
+                {'error': 'Product/Service is not in favorites.'},
+                status=status.HTTP_404_NOT_FOUND
             )

@@ -1,5 +1,5 @@
 // Sync service for data synchronization
-import { SyncQueue, Order, Payment, Vendor, MenuItem, ApiResponse } from '../types/index';
+import { SyncQueue, Order, Payment, Vendor, ProductService, ApiResponse } from '../types/index';
 import { storage } from './storage';
 import { API_ENDPOINTS } from '../types/index';
 
@@ -113,7 +113,6 @@ class SyncService {
           const result = await response.json();
           // Update local order with server ID
           orderData.id = result.data.id;
-          orderData.synced_to_server = true;
           await storage.saveOrder(orderData);
           return true;
         }
@@ -143,7 +142,6 @@ class SyncService {
         if (response.ok) {
           const result = await response.json();
           paymentData.id = result.data.id;
-          paymentData.synced_to_server = true;
           await storage.savePayment(paymentData);
           return true;
         }
@@ -161,7 +159,7 @@ class SyncService {
       const vendorData = item.data as Vendor;
       
       if (item.operation_type === 'update') {
-        const response = await fetch(API_ENDPOINTS.VENDOR_DETAIL(vendorData.id), {
+        const response = await fetch(API_ENDPOINTS.VENDOR_DETAIL(String(vendorData.id)), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -185,10 +183,10 @@ class SyncService {
 
   private async syncMenuItem(item: SyncQueue): Promise<boolean> {
     try {
-      const menuItemData = item.data as MenuItem;
+      const menuItemData = item.data as ProductService;
       
       if (item.operation_type === 'update') {
-        const response = await fetch(API_ENDPOINTS.MENU_ITEM_DETAIL(menuItemData.id), {
+        const response = await fetch(API_ENDPOINTS.MENU_ITEM_DETAIL(String(menuItemData.id)), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

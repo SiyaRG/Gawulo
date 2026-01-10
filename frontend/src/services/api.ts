@@ -1,5 +1,5 @@
 // API service for Django backend integration
-import { Vendor, MenuItem as MenuItemType, Order, Review, User, MenuCategory, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language, LoginResponse } from '../types/index';
+import { Vendor, ProductService, Order, Review, User, AuthResponse, TokenRefreshResponse, ProfileUpdateForm, Country, Language, LoginResponse, VendorStats, ProductImage, VendorImage, CustomerAddress, FavoriteVendor, FavoriteProductService } from '../types/index';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9033/api';
 
@@ -241,8 +241,363 @@ class ApiService {
     return response.json();
   }
 
-  async getVendorStats(id: string): Promise<any> {
-    const response = await fetch(`${this.baseURL}/vendors/${id}/stats/`, {
+
+  // ProductService methods (replacing MenuItems)
+  async getMenuItems(params?: {
+    vendor?: string;
+    category?: string;
+    search?: string;
+    ordering?: string;
+  }): Promise<{ count: number; results: ProductService[] }> {
+    const url = new URL(`${this.baseURL}/vendors/products-services/`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error('Failed to fetch products/services');
+    }
+
+    return response.json();
+  }
+
+  async getMenuItem(id: string): Promise<ProductService> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${id}/`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch product/service');
+    }
+
+    return response.json();
+  }
+
+  async createMenuItem(menuItemData: Omit<ProductService, 'id' | 'created_at' | 'vendor'>): Promise<ProductService> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/create/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(menuItemData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || errorData.error || JSON.stringify(errorData) || 'Failed to create product/service';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateMenuItem(id: string, menuItemData: Partial<ProductService>): Promise<ProductService> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${id}/update/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(menuItemData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update product/service');
+    }
+
+    return response.json();
+  }
+
+  async deleteMenuItem(id: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${id}/delete/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete product/service');
+    }
+  }
+
+  // Aliases for ProductService methods (for consistency)
+  async getProductService(id: string): Promise<ProductService> {
+    return this.getMenuItem(id);
+  }
+
+  async getProductServices(params?: {
+    vendor?: string;
+    category?: string;
+    search?: string;
+    ordering?: string;
+  }): Promise<{ count: number; results: ProductService[] }> {
+    return this.getMenuItems(params);
+  }
+
+  async createProductService(menuItemData: Omit<ProductService, 'id' | 'created_at' | 'vendor'>): Promise<ProductService> {
+    return this.createMenuItem(menuItemData);
+  }
+
+  async updateProductService(id: string, menuItemData: Partial<ProductService>): Promise<ProductService> {
+    return this.updateMenuItem(id, menuItemData);
+  }
+
+  async deleteProductService(id: string): Promise<void> {
+    return this.deleteMenuItem(id);
+  }
+
+  async getVendorMenu(vendorId: string): Promise<ProductService[]> {
+    const response = await fetch(`${this.baseURL}/vendors/${vendorId}/products-services/`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch vendor menu');
+    }
+
+    const data = await response.json();
+    // Handle paginated response or direct array
+    return Array.isArray(data) ? data : (data.results || []);
+  }
+
+  async getMyVendorProductsServices(): Promise<ProductService[]> {
+    const response = await fetch(`${this.baseURL}/vendors/profile/products-services/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch my vendor products/services');
+    }
+
+    return response.json();
+  }
+
+  async uploadVendorProfileImage(file: File): Promise<Vendor> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Get auth headers but exclude Content-Type for FormData
+    const authHeaders = this.getAuthHeaders();
+    const { 'Content-Type': _, ...headersWithoutContentType } = authHeaders;
+
+    const response = await fetch(`${this.baseURL}/vendors/profile/image/`, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to upload vendor profile image';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async uploadProductServiceImage(productId: string, file: File): Promise<ProductService> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Get auth headers but exclude Content-Type for FormData
+    const authHeaders = this.getAuthHeaders();
+    const { 'Content-Type': _, ...headersWithoutContentType } = authHeaders;
+
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${productId}/image/`, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to upload product/service image';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async getProductImages(productId: string): Promise<ProductImage[]> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${productId}/images/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch product images');
+    }
+
+    return response.json();
+  }
+
+  async uploadProductImages(productServiceId: string, files: File[]): Promise<ProductImage[]> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // Get auth headers but exclude Content-Type for FormData
+    const authHeaders = this.getAuthHeaders();
+    const { 'Content-Type': _, ...headersWithoutContentType } = authHeaders;
+
+    const response = await fetch(`${this.baseURL}/vendors/products-services/${productServiceId}/images/upload/`, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to upload product images';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateProductImage(imageId: string, imageData: { is_preview?: boolean; display_order?: number }): Promise<ProductImage> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/images/${imageId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(imageData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || errorData.message || JSON.stringify(errorData) || 'Failed to update product image';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async deleteProductImage(imageId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/vendors/products-services/images/${imageId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to delete product image';
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getVendorImages(): Promise<VendorImage[]> {
+    const response = await fetch(`${this.baseURL}/vendors/profile/images/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch vendor images');
+    }
+
+    return response.json();
+  }
+
+  async uploadVendorImages(files: File[]): Promise<VendorImage[]> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // Get auth headers but exclude Content-Type for FormData
+    const authHeaders = this.getAuthHeaders();
+    const { 'Content-Type': _, ...headersWithoutContentType } = authHeaders;
+
+    const response = await fetch(`${this.baseURL}/vendors/profile/images/upload/`, {
+      method: 'POST',
+      headers: headersWithoutContentType,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to upload vendor images';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateVendorImage(imageId: string, imageData: { is_preview?: boolean; display_order?: number }): Promise<VendorImage> {
+    const response = await fetch(`${this.baseURL}/vendors/profile/images/${imageId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(imageData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || errorData.message || JSON.stringify(errorData) || 'Failed to update vendor image';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async deleteVendorImage(imageId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/vendors/profile/images/${imageId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to delete vendor image';
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getCurrentVendor(): Promise<Vendor | null> {
+    try {
+      const response = await fetch(`${this.baseURL}/vendors/profile/`, {
+        headers: this.getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 404) {
+          return null; // User doesn't have a vendor profile
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.error || 'Failed to fetch current vendor');
+      }
+
+      return response.json();
+    } catch (error) {
+      // If it's already an Error, rethrow it
+      if (error instanceof Error && error.message.includes('vendor profile')) {
+        return null;
+      }
+      // For network errors or other issues, return null to allow graceful handling
+      console.error('Error fetching vendor profile:', error);
+      return null;
+    }
+  }
+
+  async updateVendorProfile(vendorData: Partial<Vendor>): Promise<Vendor> {
+    const response = await fetch(`${this.baseURL}/vendors/profile/update/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(vendorData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update vendor profile');
+    }
+
+    return response.json();
+  }
+
+  async getVendorStats(): Promise<VendorStats> {
+    const response = await fetch(`${this.baseURL}/vendors/stats/`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -253,124 +608,6 @@ class ApiService {
     return response.json();
   }
 
-  // Menu Items methods
-  async getMenuItems(params?: {
-    vendor?: string;
-    category?: string;
-    search?: string;
-    ordering?: string;
-  }): Promise<{ count: number; results: MenuItemType[] }> {
-    const url = new URL(`${this.baseURL}/vendors/menu-items/`);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) url.searchParams.append(key, value);
-      });
-    }
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error('Failed to fetch menu items');
-    }
-
-    return response.json();
-  }
-
-  async getMenuItem(id: string): Promise<MenuItemType> {
-    const response = await fetch(`${this.baseURL}/vendors/menu-items/${id}/`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch menu item');
-    }
-
-    return response.json();
-  }
-
-  async createMenuItem(menuItemData: Omit<MenuItemType, 'id'>): Promise<MenuItemType> {
-    const response = await fetch(`${this.baseURL}/vendors/menu-items/create/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-      },
-      body: JSON.stringify(menuItemData),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create menu item');
-    }
-
-    return response.json();
-  }
-
-  async updateMenuItem(id: string, menuItemData: Partial<MenuItemType>): Promise<MenuItemType> {
-    const response = await fetch(`${this.baseURL}/vendors/menu-items/${id}/update/`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-      },
-      body: JSON.stringify(menuItemData),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update menu item');
-    }
-
-    return response.json();
-  }
-
-  async deleteMenuItem(id: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/vendors/menu-items/${id}/delete/`, {
-      method: 'DELETE',
-      headers: this.getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete menu item');
-    }
-  }
-
-  async getVendorMenu(vendorId: string): Promise<MenuItemType[]> {
-    const response = await fetch(`${this.baseURL}/vendors/${vendorId}/menu/`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch vendor menu');
-    }
-
-    return response.json();
-  }
-
-  // Menu Categories methods
-  async getCategories(params?: { vendor?: string }): Promise<MenuCategory[]> {
-    const url = new URL(`${this.baseURL}/vendors/categories/`);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) url.searchParams.append(key, value);
-      });
-    }
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error('Failed to fetch categories');
-    }
-
-    return response.json();
-  }
-
-  async createCategory(categoryData: Omit<MenuCategory, 'id'>): Promise<MenuCategory> {
-    const response = await fetch(`${this.baseURL}/vendors/categories/create/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-      },
-      body: JSON.stringify(categoryData),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create category');
-    }
-
-    return response.json();
-  }
 
   // Orders methods
   async getOrders(params?: {
@@ -470,7 +707,7 @@ class ApiService {
         'Content-Type': 'application/json',
         ...this.getAuthHeaders(),
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ current_status: status }),
     });
 
     if (!response.ok) {
@@ -489,7 +726,9 @@ class ApiService {
       throw new Error('Failed to fetch my orders');
     }
 
-    return response.json();
+    const data = await response.json();
+    // Handle paginated response or direct array
+    return Array.isArray(data) ? data : (data.results || []);
   }
 
   async getVendorOrders(): Promise<Order[]> {
@@ -567,6 +806,25 @@ class ApiService {
     }
 
     return response.json();
+  }
+
+  // Token management methods
+  setAccessToken(token: string | null): void {
+    this.accessToken = token;
+    if (token) {
+      localStorage.setItem('accessToken', token);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
+  }
+
+  setRefreshToken(token: string | null): void {
+    this.refreshToken = token;
+    if (token) {
+      localStorage.setItem('refreshToken', token);
+    } else {
+      localStorage.removeItem('refreshToken');
+    }
   }
 
   // Utility methods
@@ -803,6 +1061,190 @@ class ApiService {
       count: allResults.length,
       results: allResults,
     };
+  }
+
+  // Customer Address methods
+  async getCustomerAddresses(): Promise<CustomerAddress[]> {
+    const response = await fetch(`${this.baseURL}/auth/customers/addresses/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch customer addresses');
+    }
+
+    return response.json();
+  }
+
+  async createCustomerAddress(addressData: Omit<CustomerAddress, 'id' | 'user' | 'created_at'>): Promise<CustomerAddress> {
+    const response = await fetch(`${this.baseURL}/auth/customers/addresses/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(addressData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to create address';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateCustomerAddress(addressId: string, addressData: Partial<CustomerAddress>): Promise<CustomerAddress> {
+    const response = await fetch(`${this.baseURL}/auth/customers/addresses/${addressId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify(addressData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to update address';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async deleteCustomerAddress(addressId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/auth/customers/addresses/${addressId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to delete address';
+      throw new Error(errorMessage);
+    }
+  }
+
+  async setDefaultAddress(addressId: string): Promise<CustomerAddress> {
+    const response = await fetch(`${this.baseURL}/auth/customers/addresses/${addressId}/set-default/`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to set default address';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  // Favorite Vendor methods
+  async getFavoriteVendors(): Promise<FavoriteVendor[]> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch favorite vendors');
+    }
+
+    const data = await response.json();
+    // Handle paginated response or direct array
+    return Array.isArray(data) ? data : (data.results || []);
+  }
+
+  async addFavoriteVendor(vendorId: string): Promise<FavoriteVendor> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ vendor_id: parseInt(vendorId, 10) }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      // Extract error message from various possible formats
+      const errorMessage = errorData.detail || 
+                          (Array.isArray(errorData.vendor_id) ? errorData.vendor_id[0] : null) ||
+                          errorData.error || 
+                          errorData.message ||
+                          (typeof errorData === 'string' ? errorData : JSON.stringify(errorData)) ||
+                          'Failed to add favorite vendor';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async removeFavoriteVendor(vendorId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/${vendorId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to remove favorite vendor';
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getFavoriteProducts(): Promise<FavoriteProductService[]> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/products/`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch favorite products');
+    }
+
+    const data = await response.json();
+    // Handle paginated response or direct array
+    return Array.isArray(data) ? data : (data.results || []);
+  }
+
+  async addFavoriteProduct(productServiceId: string): Promise<FavoriteProductService> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/products/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ product_service_id: parseInt(productServiceId, 10) }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      // Extract error message from various possible formats
+      const errorMessage = errorData.detail || 
+                          (Array.isArray(errorData.product_service_id) ? errorData.product_service_id[0] : null) ||
+                          errorData.error || 
+                          errorData.message ||
+                          (typeof errorData === 'string' ? errorData : JSON.stringify(errorData)) ||
+                          'Failed to add favorite product';
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async removeFavoriteProduct(productServiceId: string): Promise<void> {
+    const response = await fetch(`${this.baseURL}/auth/customers/favorites/products/${productServiceId}/`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.detail || 'Failed to remove favorite product';
+      throw new Error(errorMessage);
+    }
   }
 
   // Health check

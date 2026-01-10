@@ -5,7 +5,7 @@ Serializers for authentication API.
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from .models import Customer, UserProfile
+from .models import Customer, UserProfile, FavoriteVendor, FavoriteProductService, Address
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -472,3 +472,77 @@ class ProfileUpdateSerializer(serializers.Serializer):
                 )
         
         return instance
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    """Serializer for Address model."""
+    
+    country_name = serializers.CharField(source='country.country_name', read_only=True)
+    country_code = serializers.CharField(source='country.iso_alpha2', read_only=True)
+    country = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id', 'user', 'address_type', 'line1', 'line2', 'city',
+            'state_province', 'postal_code', 'country', 'country_name',
+            'country_code', 'is_default', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def validate_country(self, value):
+        """Validate and convert country iso_alpha2 to Country instance."""
+        if not value or value == '':
+            return None
+        
+        try:
+            from lookups.models import Country
+            country = Country.objects.get(iso_alpha2=value.upper(), is_active=True)
+            return country
+        except Country.DoesNotExist:
+            raise serializers.ValidationError(f"Invalid country code: {value}")
+    
+    def validate(self, data):
+        """Ensure only one default address per user."""
+        if data.get('is_default', False):
+            user = data.get('user') or (self.instance.user if self.instance else None)
+            if user:
+                # Unset other default addresses for this user
+                Address.objects.filter(user=user, is_default=True).exclude(
+                    id=self.instance.id if self.instance else None
+                ).update(is_default=False)
+        return data
+
+
+class FavoriteVendorSerializer(serializers.ModelSerializer):
+    """Serializer for FavoriteVendor model."""
+    
+    vendor = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FavoriteVendor
+        fields = ['id', 'customer', 'vendor', 'created_at']
+        read_only_fields = ['id', 'customer', 'created_at']
+    
+    def get_vendor(self, obj):
+        """Get vendor data using VendorSerializer."""
+        from vendors.serializers import VendorSerializer
+        request = self.context.get('request')
+        return VendorSerializer(obj.vendor, context={'request': request}).data
+
+
+class FavoriteProductServiceSerializer(serializers.ModelSerializer):
+    """Serializer for FavoriteProductService model."""
+    
+    product_service = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FavoriteProductService
+        fields = ['id', 'customer', 'product_service', 'created_at']
+        read_only_fields = ['id', 'customer', 'created_at']
+    
+    def get_product_service(self, obj):
+        """Get product service data using ProductServiceSerializer."""
+        from vendors.serializers import ProductServiceSerializer
+        request = self.context.get('request')
+        return ProductServiceSerializer(obj.product_service, context={'request': request}).data

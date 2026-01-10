@@ -331,6 +331,7 @@ class Address(models.Model):
         related_name='addresses',
         help_text="Country for this address"
     )
+    is_default = models.BooleanField(default=False, help_text="Is this the default delivery address?")
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     
     class Meta:
@@ -593,3 +594,83 @@ class UserPermissions(models.Model):
             return all(permissions.has_permission(name) for name in permission_field_names)
         except cls.DoesNotExist:
             return False
+
+
+class FavoriteVendor(models.Model):
+    """
+    Favorite vendor model for customers.
+    
+    Allows customers to save their favorite vendors for quick access.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='favorite_vendors'
+    )
+    vendor = models.ForeignKey(
+        'vendors.Vendor',
+        on_delete=models.CASCADE,
+        related_name='favorited_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'Favorite Vendor'
+        verbose_name_plural = 'Favorite Vendors'
+        ordering = ['-created_at']
+        unique_together = [['customer', 'vendor']]
+        indexes = [
+            models.Index(fields=['customer', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.customer.display_name} favorites {self.vendor.name}"
+    
+    def save(self, *args, **kwargs):
+        """Prevent modification of created_at on existing records."""
+        if self.pk:
+            original = FavoriteVendor.objects.get(pk=self.pk)
+            self.created_at = original.created_at
+        super().save(*args, **kwargs)
+
+
+class FavoriteProductService(models.Model):
+    """
+    Favorite product/service model for customers.
+    
+    Allows customers to save their favorite products/services for quick access.
+    """
+    
+    id = models.AutoField(primary_key=True)
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='favorite_products'
+    )
+    product_service = models.ForeignKey(
+        'vendors.ProductService',
+        on_delete=models.CASCADE,
+        related_name='favorited_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    
+    class Meta:
+        verbose_name = 'Favorite Product/Service'
+        verbose_name_plural = 'Favorite Products/Services'
+        ordering = ['-created_at']
+        unique_together = [['customer', 'product_service']]
+        indexes = [
+            models.Index(fields=['customer', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.customer.display_name} favorites {self.product_service.name}"
+    
+    def save(self, *args, **kwargs):
+        """Prevent modification of created_at on existing records."""
+        if self.pk:
+            original = FavoriteProductService.objects.get(pk=self.pk)
+            self.created_at = original.created_at
+        super().save(*args, **kwargs)

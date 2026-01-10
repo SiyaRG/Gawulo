@@ -62,7 +62,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       if ('requires_2fa' in login.data && login.data.requires_2fa) {
         setRequires2FA(true);
         // Type guard: if requires_2fa is true, it's TwoFactorAuthResponse
-        const twoFactorResponse = login.data as { requires_2fa: true; session_token: string; message: string };
+        const twoFactorResponse = login.data as unknown as { requires_2fa: true; session_token: string; message: string };
         setSessionToken(twoFactorResponse.session_token);
         setErrorMessage(null);
       } else {

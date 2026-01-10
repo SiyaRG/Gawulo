@@ -56,7 +56,7 @@ class LanguageDetailView(generics.RetrieveAPIView):
     queryset = Language.objects.all()
     serializer_class = LanguageSerializer
     permission_classes = [permissions.AllowAny]
-    lookup_field = 'iso_639_1'
+    lookup_field = 'iso_639_1' 
 
 
 # Currency Views

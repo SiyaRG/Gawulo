@@ -96,63 +96,112 @@ export interface TokenRefreshResponse {
   access: string;
 }
 
-export interface Vendor {
-  id: string;
-  user: User;
-  business_name: string;
-  business_type: 'street_food' | 'home_kitchen' | 'restaurant' | 'catering' | 'bakery' | 'other';
-  description?: string;
-  phone_number: string;
-  email?: string;
-  address: string;
-  latitude?: number;
-  longitude?: number;
-  operating_hours: Record<string, any>;
-  delivery_radius: number;
-  minimum_order: number;
-  delivery_fee: number;
-  status: 'pending' | 'active' | 'suspended' | 'inactive';
-  is_verified: boolean;
-  rating: number;
-  total_orders: number;
-  offline_capable: boolean;
-  last_sync?: string;
-  sync_status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MenuCategory {
+export interface VendorImage {
   id: number;
-  vendor: string;
-  name: string;
-  description?: string;
-  is_active: boolean;
-  sort_order: number;
+  vendor: number;
+  image: string;
+  is_preview: boolean;
+  display_order: number;
+  created_at: string;
 }
 
-export interface MenuItem {
-  id: string;
-  vendor: string;
-  category: number;
+export interface Vendor {
+  id: number;
+  user: User;
   name: string;
-  description?: string;
-  price: number;
-  original_price?: number;
-  availability_status: 'available' | 'unavailable' | 'out_of_stock';
-  is_featured: boolean;
-  image?: string;
-  preparation_time: number;
-  allergens: string[];
-  dietary_info: Record<string, any>;
-  offline_available: boolean;
-  last_updated: string;
+  category: string;
+  profile_description?: string;
+  profile_image?: string;
+  images?: VendorImage[];
+  preview_image?: string;
+  is_verified: boolean;
+  average_rating: number;
+  review_count: number;
   created_at: string;
   updated_at: string;
+  products_services?: ProductService[];
 }
 
-// Type alias to avoid conflicts with Material-UI MenuItem
-export type MenuItemType = MenuItem;
+export interface VendorStats {
+  vendor_id: number;
+  vendor_name: string;
+  products_count: number;
+  total_orders: number;
+  average_rating: number;
+  review_count: number;
+  today_revenue: number;
+  week_revenue: number;
+  month_revenue: number;
+  status_breakdown: Record<string, number>;
+  popular_products: Array<{
+    product_service__id: number;
+    product_service__name: string;
+    order_count: number;
+    total_quantity: number;
+  }>;
+  revenue_trends: Array<{
+    date: string;
+    revenue: number;
+  }>;
+}
+
+export interface CustomerAddress {
+  id: number;
+  user: number;
+  address_type?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state_province?: string;
+  postal_code: string;
+  country?: number;
+  country_name?: string;
+  country_code?: string;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface FavoriteVendor {
+  id: number;
+  customer: number;
+  vendor: Vendor;
+  created_at: string;
+}
+
+export interface FavoriteProductService {
+  id: number;
+  customer: number;
+  product_service: ProductService;
+  created_at: string;
+}
+
+export interface ProductImage {
+  id: number;
+  product_service: number;
+  image: string;
+  is_preview: boolean;
+  display_order: number;
+  created_at: string;
+}
+
+// ProductService interface matching backend model
+export interface ProductService {
+  id: number;
+  vendor: number;
+  vendor_name?: string;
+  name: string;
+  description?: string;
+  current_price: number;
+  image?: string;
+  images?: ProductImage[];
+  preview_image?: string;
+  is_service?: boolean | null;
+  created_at: string;
+}
+
+// Type alias for backward compatibility (deprecated - use ProductService)
+export type MenuItem = ProductService;
+export type MenuItemType = ProductService;
 
 export interface Review {
   id: string;
@@ -166,41 +215,41 @@ export interface Review {
 }
 
 export interface Order {
-  id: string;
-  order_number: string;
-  customer: User;
+  id: number;
+  order_uid: string;
+  customer: {
+    id: number;
+    display_name: string;
+    user: User;
+  };
   vendor: Vendor;
-  delivery_method: 'delivery' | 'pickup';
-  delivery_address?: string;
-  delivery_instructions?: string;
-  special_instructions?: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'failed';
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
-  estimated_preparation_time: number;
-  estimated_delivery_time?: string;
-  actual_delivery_time?: string;
-  subtotal: number;
-  delivery_fee: number;
-  tax_amount: number;
   total_amount: number;
-  created_offline: boolean;
-  synced_to_server: boolean;
-  sync_timestamp?: string;
+  current_status: 'Confirmed' | 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Refunded';
+  is_completed: boolean;
   created_at: string;
   updated_at: string;
-  items: OrderItem[];
+  line_items?: OrderLineItem[];
 }
 
-export interface OrderItem {
+export interface OrderLineItem {
   id: number;
-  order: string;
-  menu_item: MenuItemType;
+  order: number;
+  product_service: ProductService | null;
   quantity: number;
+  unit_price_snapshot: number;
+  discount_applied: number;
+  line_total: number;
+  quantity_fulfilled: number;
+  created_at: string;
+}
+
+// Legacy interfaces for backward compatibility
+export interface OrderItem extends OrderLineItem {
+  menu_item: ProductService;
   unit_price: number;
   total_price: number;
   special_instructions?: string;
   customizations: Record<string, any>;
-  created_at: string;
   updated_at: string;
 }
 
